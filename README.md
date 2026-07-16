@@ -2,6 +2,8 @@
 
 A live status line for [Claude Code](https://code.claude.com) that shows your model, git branch, context window usage, 5-hour and weekly rate limits, reset countdowns, and session cost. It reads the official Status Line JSON payload on stdin and prints a formatted line. No polling, no `/usage` scraping, no undocumented APIs.
 
+**📖 [Website &amp; docs → im-shubhamsharma.github.io/flux-code](https://im-shubhamsharma.github.io/flux-code/)**
+
 [![CI](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml/badge.svg)](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
