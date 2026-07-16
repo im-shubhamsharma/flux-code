@@ -9,11 +9,11 @@
 
 import type { Ansi } from './colors';
 import { bg256ForPercent, colorForPercent, createAnsi } from './colors';
-import { formatResetsIn } from './countdown';
+import { formatDuration, formatResetsIn } from './countdown';
 import { EMOJI_ICONS, NERD_ICONS, POWERLINE_BRANCH, POWERLINE_SEPARATOR } from './icons';
 import { progressBar, type BarOptions } from './progress';
 import type { Config, StatusModel } from './types';
-import { formatCost } from './utils';
+import { formatBurnRate, formatCost, formatLines } from './utils';
 
 export interface RenderContext {
   /** Milliseconds since epoch, used for reset countdowns. */
@@ -33,6 +33,20 @@ function pctLabel(value: number | null, config: Config): string {
  */
 function showPct(value: number | null, config: Config): boolean {
   return value !== null || !config.hideUnavailable;
+}
+
+/** Colored "+124 −18" lines fragment, or `null` when the data is unavailable. */
+function linesFragment(model: StatusModel, ansi: Ansi): string | null {
+  if (model.linesAdded === null && model.linesRemoved === null) return null;
+  const a = model.linesAdded ?? 0;
+  const r = model.linesRemoved ?? 0;
+  return `${ansi.green(`+${a}`)} ${ansi.red(`−${r}`)}`;
+}
+
+/** Elapsed session time ("2h 13m"), or `null` when the duration is unavailable. */
+function sessionTimeText(model: StatusModel): string | null {
+  if (model.durationMs === null) return null;
+  return formatDuration(model.durationMs);
 }
 
 function barOptions(config: Config): BarOptions {
@@ -109,6 +123,18 @@ function renderDefault(model: StatusModel, config: Config, ctx: RenderContext): 
   if (config.showCost && model.cost !== null) {
     lines.push(`${iconPrefix(I.cost, config)}${ansi.yellow(formatCost(model.cost))}`);
   }
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) lines.push(`${iconPrefix(I.lines, config)}${frag}`);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) lines.push(`${iconPrefix(I.time, config)}${ansi.gray(t)}`);
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
+  }
 
   return lines.length > 0 ? lines.join('\n') : fallback(model, config, ansi);
 }
@@ -138,6 +164,18 @@ function renderCompact(model: StatusModel, config: Config, ctx: RenderContext): 
     );
   }
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(frag);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(ansi.gray(t));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(ansi.yellow(b));
+  }
 
   return segments.length > 0 ? segments.join(config.separator) : fallback(model, config, ansi);
 }
@@ -157,6 +195,18 @@ function renderMinimal(model: StatusModel, config: Config, ctx: RenderContext): 
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${paint(model.weekly)(pctLabel(model.weekly, config))}`);
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(frag);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(ansi.gray(t));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(ansi.yellow(b));
+  }
 
   return segments.length > 0 ? segments.join(' │ ') : fallback(model, config, ansi);
 }
@@ -191,6 +241,17 @@ function renderPowerline(model: StatusModel, config: Config, ctx: RenderContext)
   if (config.showWeekly && showPct(model.weekly, config)) segments.push(pctSeg('7D', model.weekly));
   if (config.showCost && model.cost !== null) {
     segments.push({ text: ` ${formatCost(model.cost)} `, fg: white, bg: 22 });
+  }
+  if (config.showLines) {
+    const frag = formatLines(model.linesAdded, model.linesRemoved);
+    if (frag) segments.push({ text: ` ${frag} `, fg: white, bg: 238 });
+  }
+  if (config.showSessionTime && model.durationMs !== null) {
+    segments.push({ text: ` ${formatDuration(model.durationMs)} `, fg: white, bg: 236 });
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push({ text: ` ${b} `, fg: white, bg: 22 });
   }
 
   if (segments.length === 0) return fallback(model, config, ansi);
@@ -243,6 +304,18 @@ function renderNerdFont(model: StatusModel, config: Config, ctx: RenderContext):
   if (config.showCost && model.cost !== null) {
     segments.push(`${useIcons ? `${I.cost} ` : ''}${ansi.yellow(formatCost(model.cost))}`);
   }
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(`${useIcons ? `${I.lines} ` : ''}${frag}`);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(`${useIcons ? `${I.time} ` : ''}${ansi.gray(t)}`);
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(`${useIcons ? `${I.burn} ` : ''}${ansi.yellow(b)}`);
+  }
 
   return segments.length > 0 ? segments.join('  ') : fallback(model, config, ansi);
 }
@@ -265,6 +338,16 @@ function renderPlainText(model: StatusModel, config: Config): string {
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${pctLabel(model.weekly, config)}`);
   if (config.showCost && model.cost !== null) segments.push(formatCost(model.cost));
+  if (config.showLines && (model.linesAdded !== null || model.linesRemoved !== null)) {
+    segments.push(`+${model.linesAdded ?? 0} -${model.linesRemoved ?? 0}`);
+  }
+  if (config.showSessionTime && model.durationMs !== null) {
+    segments.push(formatDuration(model.durationMs));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(b);
+  }
 
   return segments.length > 0 ? segments.join(' | ') : (model.modelName ?? config.missingText);
 }

@@ -9,6 +9,7 @@
 
 import { runCli } from './cli';
 import { loadConfig } from './config';
+import { maybeNotify } from './notify';
 import { produceStatusLine } from './statusline';
 import { readStdin, safeParseInput } from './utils';
 
@@ -38,6 +39,8 @@ function main(): void {
     const input = safeParseInput(readStdin());
     const config = loadConfig();
     process.stdout.write(`${produceStatusLine(input, config)}\n`);
+    // Best-effort usage notifications (no-op unless enabled); never blocks output.
+    maybeNotify(input, config);
   } catch {
     // A blank line keeps the row present without surfacing an error.
     process.stdout.write('\n');

@@ -166,6 +166,12 @@ export interface Config {
   showCost: boolean;
   showCountdown: boolean;
   showWorkingDirectory: boolean;
+  /** Show lines added/removed this session (`+124 −18`). Off by default. */
+  showLines: boolean;
+  /** Show elapsed session time (`⏱ 2h 13m`). Off by default. */
+  showSessionTime: boolean;
+  /** Show spend rate in USD per hour (`$0.34/h`). Off by default. */
+  showBurnRate: boolean;
   /**
    * Hide the 5-hour and weekly segments until their data is available instead
    * of showing a `--` placeholder. On a fresh session `rate_limits` only
@@ -174,6 +180,16 @@ export interface Config {
    * until available, regardless of this flag.)
    */
   hideUnavailable: boolean;
+  /**
+   * Fire a desktop notification when the 5-hour or weekly usage first crosses
+   * a `notifyThresholds` level within a window. Off by default. Notifications
+   * are deduplicated per session and reset when a window rolls over.
+   */
+  notify: boolean;
+  /** Also emit a terminal bell alongside a usage notification. */
+  notifyBell: boolean;
+  /** Percentage levels that trigger a usage notification, e.g. `[80, 95]`. */
+  notifyThresholds: number[];
   /** Seconds between forced refreshes. Bridged to `statusLine.refreshInterval`. */
   refreshSeconds: number;
   /** Progress bar width in characters. */
@@ -209,6 +225,12 @@ export interface StatusModel {
   fiveHourResetAt: number | null;
   weeklyResetAt: number | null;
   cost: number | null;
+  /** `cost.total_lines_added` — lines added this session. */
+  linesAdded: number | null;
+  /** `cost.total_lines_removed` — lines removed this session. */
+  linesRemoved: number | null;
+  /** `cost.total_duration_ms` — wall-clock session duration. */
+  durationMs: number | null;
   version: string | null;
   sessionName: string | null;
   contextWindowSize: number | null;

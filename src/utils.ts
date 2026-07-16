@@ -75,6 +75,28 @@ export function formatCost(value: number | null): string {
   return `$${value.toFixed(2)}`;
 }
 
+/**
+ * Format lines added/removed as "+124 −18". Uses a true minus sign (U+2212)
+ * for the removed count. Returns `null` when neither value is available.
+ */
+export function formatLines(added: number | null, removed: number | null): string | null {
+  const a = added ?? 0;
+  const r = removed ?? 0;
+  if (added === null && removed === null) return null;
+  return `+${a} −${r}`;
+}
+
+/**
+ * Format spend rate as "$0.34/h" from a cost and an elapsed duration. Returns
+ * `null` when either input is missing or the duration is too short to be
+ * meaningful (under 30 seconds), which would produce a wild extrapolation.
+ */
+export function formatBurnRate(cost: number | null, durationMs: number | null): string | null {
+  if (cost === null || durationMs === null || durationMs < 30_000) return null;
+  const perHour = cost / (durationMs / 3_600_000);
+  return `$${perHour.toFixed(2)}/h`;
+}
+
 const GIT_CACHE_TTL_MS = 3000;
 
 function sanitizeKey(key: string): string {

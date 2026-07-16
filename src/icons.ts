@@ -23,6 +23,9 @@ export interface IconSet {
   fiveHour: string;
   weekly: string;
   cost: string;
+  lines: string;
+  time: string;
+  burn: string;
   /** Escalating warning badge glyph. */
   warn: string;
 }
@@ -35,6 +38,9 @@ export const EMOJI_ICONS: IconSet = {
   fiveHour: '⚡',
   weekly: '📅',
   cost: '💰',
+  lines: '📝',
+  time: '⏱',
+  burn: '🔥',
   warn: '⚠',
 };
 
@@ -47,6 +53,9 @@ export const NERD_ICONS: IconSet = {
   fiveHour: cp(0xf0e7), // nf-fa-bolt
   weekly: cp(0xf073), // nf-fa-calendar
   cost: cp(0xf155), // nf-fa-dollar
+  lines: cp(0xf040), // nf-fa-pencil
+  time: cp(0xf017), // nf-fa-clock_o
+  burn: cp(0xf06d), // nf-fa-fire
   warn: cp(0xf071), // nf-fa-warning
 };
 

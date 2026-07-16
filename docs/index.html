@@ -654,6 +654,22 @@
               <code>--</code> placeholders on a fresh session.
             </p>
           </div>
+          <div class="card">
+            <div class="ic">🔔</div>
+            <h3>Usage alerts</h3>
+            <p>
+              Opt in to a desktop notification the moment your 5-hour or weekly usage crosses a
+              threshold — a rate limit never surprises you mid-task.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">📊</div>
+            <h3>Extra segments</h3>
+            <p>
+              Optional lines-changed (<code>+124 −18</code>), session time, and spend-rate
+              (<code>$0.34/h</code>) segments — all from data Claude Code already provides.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -819,6 +835,31 @@
                 <td><code>hideUnavailable</code></td>
                 <td><span class="def">true</span></td>
                 <td>Hide 5h/weekly until they load instead of showing <code>--</code></td>
+              </tr>
+              <tr>
+                <td><code>showLines</code></td>
+                <td><span class="def">false</span></td>
+                <td>Lines added/removed this session (<code>+124 −18</code>)</td>
+              </tr>
+              <tr>
+                <td><code>showSessionTime</code></td>
+                <td><span class="def">false</span></td>
+                <td>Elapsed session time (<code>2h 13m</code>)</td>
+              </tr>
+              <tr>
+                <td><code>showBurnRate</code></td>
+                <td><span class="def">false</span></td>
+                <td>Spend rate in USD per hour (<code>$0.34/h</code>)</td>
+              </tr>
+              <tr>
+                <td><code>notify</code></td>
+                <td><span class="def">false</span></td>
+                <td>Desktop notification when 5h/weekly cross <code>notifyThresholds</code></td>
+              </tr>
+              <tr>
+                <td><code>notifyThresholds</code></td>
+                <td><span class="def">[90]</span></td>
+                <td>Percent levels that trigger a notification, e.g. <code>[80, 95]</code></td>
               </tr>
               <tr>
                 <td><code>showBranch</code></td>

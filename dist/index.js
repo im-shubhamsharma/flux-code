@@ -21,7 +21,13 @@ var DEFAULT_CONFIG = {
   showCost: true,
   showCountdown: true,
   showWorkingDirectory: false,
+  showLines: false,
+  showSessionTime: false,
+  showBurnRate: false,
   hideUnavailable: true,
+  notify: false,
+  notifyBell: true,
+  notifyThresholds: [90],
   refreshSeconds: 30,
   progressWidth: 12,
   useColors: true,
@@ -51,7 +57,12 @@ var BOOLEAN_KEYS = [
   "showCost",
   "showCountdown",
   "showWorkingDirectory",
+  "showLines",
+  "showSessionTime",
+  "showBurnRate",
   "hideUnavailable",
+  "notify",
+  "notifyBell",
   "useColors",
   "useIcons",
   "partialBlocks",
@@ -89,6 +100,14 @@ function mergeConfig(raw) {
   }
   if (typeof raw.separator === "string") cfg.separator = raw.separator;
   if (typeof raw.missingText === "string") cfg.missingText = raw.missingText;
+  if (Array.isArray(raw.notifyThresholds)) {
+    const cleaned = [
+      ...new Set(
+        raw.notifyThresholds.filter(isFiniteNumber).map((n) => Math.max(1, Math.min(100, Math.floor(n))))
+      )
+    ].sort((a, b) => a - b);
+    cfg.notifyThresholds = cleaned;
+  }
   const layout = isLayout(raw.layout) ? raw.layout : void 0;
   const theme = isTheme(raw.theme) ? raw.theme : void 0;
   if (layout) cfg.layout = layout;
@@ -180,6 +199,16 @@ function formatResetsIn(resetAtSec, nowMs) {
   if (countdown === "now") return "Resets now";
   return `Resets in ${countdown}`;
 }
+function formatDuration(ms) {
+  if (ms === null || ms === void 0 || !Number.isFinite(ms) || ms < 0) return "--";
+  const totalSeconds = Math.floor(ms / 1e3);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds % 3600 / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
 
 // src/icons.ts
 var cp = (code) => String.fromCodePoint(code);
@@ -191,6 +220,9 @@ var EMOJI_ICONS = {
   fiveHour: "\u26A1",
   weekly: "\u{1F4C5}",
   cost: "\u{1F4B0}",
+  lines: "\u{1F4DD}",
+  time: "\u23F1",
+  burn: "\u{1F525}",
   warn: "\u26A0"
 };
 var NERD_ICONS = {
@@ -208,6 +240,12 @@ var NERD_ICONS = {
   // nf-fa-calendar
   cost: cp(61781),
   // nf-fa-dollar
+  lines: cp(61504),
+  // nf-fa-pencil
+  time: cp(61463),
+  // nf-fa-clock_o
+  burn: cp(61549),
+  // nf-fa-fire
   warn: cp(61553)
   // nf-fa-warning
 };
@@ -283,6 +321,17 @@ function formatCost(value) {
   if (value === null) return "--";
   return `$${value.toFixed(2)}`;
 }
+function formatLines(added, removed) {
+  const a = added ?? 0;
+  const r = removed ?? 0;
+  if (added === null && removed === null) return null;
+  return `+${a} \u2212${r}`;
+}
+function formatBurnRate(cost, durationMs) {
+  if (cost === null || durationMs === null || durationMs < 3e4) return null;
+  const perHour = cost / (durationMs / 36e5);
+  return `$${perHour.toFixed(2)}/h`;
+}
 var GIT_CACHE_TTL_MS = 3e3;
 function sanitizeKey(key) {
   return key.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 128);
@@ -323,6 +372,16 @@ function pctLabel(value, config) {
 }
 function showPct(value, config) {
   return value !== null || !config.hideUnavailable;
+}
+function linesFragment(model, ansi) {
+  if (model.linesAdded === null && model.linesRemoved === null) return null;
+  const a = model.linesAdded ?? 0;
+  const r = model.linesRemoved ?? 0;
+  return `${ansi.green(`+${a}`)} ${ansi.red(`\u2212${r}`)}`;
+}
+function sessionTimeText(model) {
+  if (model.durationMs === null) return null;
+  return formatDuration(model.durationMs);
 }
 function barOptions(config) {
   return { partial: config.partialBlocks };
@@ -388,6 +447,18 @@ function renderDefault(model, config, ctx) {
   if (config.showCost && model.cost !== null) {
     lines.push(`${iconPrefix(I.cost, config)}${ansi.yellow(formatCost(model.cost))}`);
   }
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) lines.push(`${iconPrefix(I.lines, config)}${frag}`);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) lines.push(`${iconPrefix(I.time, config)}${ansi.gray(t)}`);
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
+  }
   return lines.length > 0 ? lines.join("\n") : fallback(model, config, ansi);
 }
 function renderCompact(model, config, ctx) {
@@ -413,6 +484,18 @@ function renderCompact(model, config, ctx) {
     );
   }
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(frag);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(ansi.gray(t));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(ansi.yellow(b));
+  }
   return segments.length > 0 ? segments.join(config.separator) : fallback(model, config, ansi);
 }
 function renderMinimal(model, config, ctx) {
@@ -428,6 +511,18 @@ function renderMinimal(model, config, ctx) {
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${paint(model.weekly)(pctLabel(model.weekly, config))}`);
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(frag);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(ansi.gray(t));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(ansi.yellow(b));
+  }
   return segments.length > 0 ? segments.join(" \u2502 ") : fallback(model, config, ansi);
 }
 function renderPowerline(model, config, ctx) {
@@ -452,6 +547,17 @@ function renderPowerline(model, config, ctx) {
   if (config.showWeekly && showPct(model.weekly, config)) segments.push(pctSeg("7D", model.weekly));
   if (config.showCost && model.cost !== null) {
     segments.push({ text: ` ${formatCost(model.cost)} `, fg: white, bg: 22 });
+  }
+  if (config.showLines) {
+    const frag = formatLines(model.linesAdded, model.linesRemoved);
+    if (frag) segments.push({ text: ` ${frag} `, fg: white, bg: 238 });
+  }
+  if (config.showSessionTime && model.durationMs !== null) {
+    segments.push({ text: ` ${formatDuration(model.durationMs)} `, fg: white, bg: 236 });
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push({ text: ` ${b} `, fg: white, bg: 22 });
   }
   if (segments.length === 0) return fallback(model, config, ansi);
   if (!ansi.enabled) return segments.map((s) => s.text).join("");
@@ -499,6 +605,18 @@ function renderNerdFont(model, config, ctx) {
   if (config.showCost && model.cost !== null) {
     segments.push(`${useIcons ? `${I.cost} ` : ""}${ansi.yellow(formatCost(model.cost))}`);
   }
+  if (config.showLines) {
+    const frag = linesFragment(model, ansi);
+    if (frag) segments.push(`${useIcons ? `${I.lines} ` : ""}${frag}`);
+  }
+  if (config.showSessionTime) {
+    const t = sessionTimeText(model);
+    if (t) segments.push(`${useIcons ? `${I.time} ` : ""}${ansi.gray(t)}`);
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(`${useIcons ? `${I.burn} ` : ""}${ansi.yellow(b)}`);
+  }
   return segments.length > 0 ? segments.join("  ") : fallback(model, config, ansi);
 }
 function renderPlainText(model, config) {
@@ -517,6 +635,16 @@ function renderPlainText(model, config) {
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${pctLabel(model.weekly, config)}`);
   if (config.showCost && model.cost !== null) segments.push(formatCost(model.cost));
+  if (config.showLines && (model.linesAdded !== null || model.linesRemoved !== null)) {
+    segments.push(`+${model.linesAdded ?? 0} -${model.linesRemoved ?? 0}`);
+  }
+  if (config.showSessionTime && model.durationMs !== null) {
+    segments.push(formatDuration(model.durationMs));
+  }
+  if (config.showBurnRate) {
+    const b = formatBurnRate(model.cost, model.durationMs);
+    if (b) segments.push(b);
+  }
   return segments.length > 0 ? segments.join(" | ") : model.modelName ?? config.missingText;
 }
 function render(model, config, ctx) {
@@ -556,6 +684,9 @@ function buildModel(input, config, _nowMs) {
     fiveHourResetAt: numberOrNull(rateLimits?.five_hour?.resets_at),
     weeklyResetAt: numberOrNull(rateLimits?.seven_day?.resets_at),
     cost: numberOrNull(input.cost?.total_cost_usd),
+    linesAdded: numberOrNull(input.cost?.total_lines_added),
+    linesRemoved: numberOrNull(input.cost?.total_lines_removed),
+    durationMs: numberOrNull(input.cost?.total_duration_ms),
     version: input.version ?? null,
     sessionName: input.session_name ?? null,
     contextWindowSize: numberOrNull(contextWindow?.context_window_size)
@@ -729,6 +860,7 @@ function runDoctor() {
     `Resolved theme   : ${config.theme}`,
     `Progress width   : ${config.progressWidth}`,
     `Colors           : ${config.useColors ? "on" : "off"}`,
+    `Notify           : ${config.notify ? `on at ${config.notifyThresholds.join(", ")}%` : "off"}`,
     `Node             : ${process.version}`,
     "",
     "Sample render (rich payload):",
@@ -790,6 +922,118 @@ function runCli(command, args) {
   }
 }
 
+// src/notify.ts
+import { spawn } from "child_process";
+import { readFileSync as readFileSync4, writeFileSync as writeFileSync3 } from "fs";
+import { tmpdir as tmpdir2 } from "os";
+import { join as join4 } from "path";
+var EMPTY_STATE = {
+  fiveHour: { resetAt: null, level: 0 },
+  weekly: { resetAt: null, level: 0 }
+};
+function highestCrossed(pct, thresholds) {
+  let hit = 0;
+  for (const t of thresholds) if (pct >= t) hit = t;
+  return hit;
+}
+function computeNotifications(windows, thresholds, prev) {
+  const events = [];
+  const next = {
+    fiveHour: { ...prev.fiveHour },
+    weekly: { ...prev.weekly }
+  };
+  const handle = (key, label, input) => {
+    const state = next[key];
+    if (input.resetAt !== state.resetAt) {
+      state.resetAt = input.resetAt;
+      state.level = 0;
+    }
+    if (input.pct === null) return;
+    const crossed = highestCrossed(input.pct, thresholds);
+    if (crossed > state.level) {
+      events.push({ label, pct: input.pct, threshold: crossed, resetAt: input.resetAt });
+      state.level = crossed;
+    }
+  };
+  handle("fiveHour", "5-hour", windows.fiveHour);
+  handle("weekly", "weekly", windows.weekly);
+  return { events, next };
+}
+function sanitizeKey2(key) {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 128);
+}
+function stateFile(sessionId) {
+  return join4(tmpdir2(), `flux-code-notify-${sanitizeKey2(sessionId || "default")}`);
+}
+function isWindowState(value) {
+  return typeof value === "object" && value !== null && typeof value.level === "number";
+}
+function readState(file) {
+  try {
+    const parsed = JSON.parse(readFileSync4(file, "utf8"));
+    if (parsed && typeof parsed === "object" && isWindowState(parsed.fiveHour) && isWindowState(parsed.weekly)) {
+      return parsed;
+    }
+  } catch {
+  }
+  return structuredClone(EMPTY_STATE);
+}
+function writeState(file, state) {
+  try {
+    writeFileSync3(file, JSON.stringify(state));
+  } catch {
+  }
+}
+function osaQuote(s) {
+  return `"${s.replace(/["\\]/g, "\\$&")}"`;
+}
+function notifyOS(title, body) {
+  try {
+    if (process.platform === "darwin") {
+      const script = `display notification ${osaQuote(body)} with title ${osaQuote(title)}`;
+      spawn("osascript", ["-e", script], { detached: true, stdio: "ignore" }).unref();
+    } else if (process.platform === "linux") {
+      spawn("notify-send", [title, body], { detached: true, stdio: "ignore" }).unref();
+    }
+  } catch {
+  }
+}
+function emit(event, config, nowMs) {
+  const title = "flux-code \u2014 usage alert";
+  const resets = formatCountdown(event.resetAt, nowMs);
+  const suffix = resets !== "--" && resets !== "now" ? ` \xB7 resets in ${resets}` : "";
+  const label = event.label.charAt(0).toUpperCase() + event.label.slice(1);
+  notifyOS(title, `${label} usage at ${Math.round(event.pct)}%${suffix}`);
+  if (config.notifyBell) {
+    try {
+      process.stderr.write("\x07");
+    } catch {
+    }
+  }
+}
+function maybeNotify(input, config, nowMs = Date.now()) {
+  if (!config.notify || config.notifyThresholds.length === 0) return;
+  try {
+    const file = stateFile(input.session_id);
+    const prev = readState(file);
+    const rl = input.rate_limits;
+    const windows = {
+      fiveHour: {
+        pct: clampPercent(rl?.five_hour?.used_percentage),
+        resetAt: numberOrNull(rl?.five_hour?.resets_at)
+      },
+      weekly: {
+        pct: clampPercent(rl?.seven_day?.used_percentage),
+        resetAt: numberOrNull(rl?.seven_day?.resets_at)
+      }
+    };
+    const { events, next } = computeNotifications(windows, config.notifyThresholds, prev);
+    writeState(file, next);
+    for (const event of events) emit(event, config, nowMs);
+  } catch {
+  }
+}
+
 // src/index.ts
 var SUBCOMMANDS = /* @__PURE__ */ new Set([
   "install",
@@ -814,6 +1058,7 @@ function main() {
     const config = loadConfig();
     process.stdout.write(`${produceStatusLine(input, config)}
 `);
+    maybeNotify(input, config);
   } catch {
     process.stdout.write("\n");
   }

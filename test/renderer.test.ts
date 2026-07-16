@@ -18,6 +18,9 @@ function model(overrides: Partial<StatusModel> = {}): StatusModel {
     fiveHourResetAt: Math.floor(NOW / 1000) + 2 * 3600 + 13 * 60,
     weeklyResetAt: Math.floor(NOW / 1000) + 5 * 86400,
     cost: 0.12,
+    linesAdded: 124,
+    linesRemoved: 18,
+    durationMs: 133000,
     version: '2.1.90',
     sessionName: null,
     contextWindowSize: 200000,
@@ -89,6 +92,29 @@ describe('render: compact', () => {
     expect(out).not.toContain('Opus');
     expect(out).not.toContain('feature/auth');
     expect(out).toBe('Ctx 41% | 5h 28% | Week 13%');
+  });
+
+  it('adds opt-in lines, session-time, and burn-rate segments', () => {
+    const out = render(
+      model(),
+      config({
+        theme: 'compact',
+        useColors: false,
+        showLines: true,
+        showSessionTime: true,
+        showBurnRate: true,
+      }),
+      plainCtx(),
+    );
+    expect(out).toContain('+124 −18'); // lines added/removed
+    expect(out).toContain('2m 13s'); // session time from 133000ms
+    expect(out).toContain('/h'); // burn rate
+  });
+
+  it('omits new segments by default', () => {
+    const out = render(model(), config({ theme: 'compact', useColors: false }), plainCtx());
+    expect(out).not.toContain('−18');
+    expect(out).not.toContain('/h');
   });
 });
 
@@ -212,6 +238,9 @@ describe('render: warnings and fallback', () => {
       fiveHourResetAt: null,
       weeklyResetAt: null,
       cost: null,
+      linesAdded: null,
+      linesRemoved: null,
+      durationMs: null,
       version: null,
       sessionName: null,
       contextWindowSize: null,

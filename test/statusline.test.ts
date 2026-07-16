@@ -14,7 +14,12 @@ const richInput: StatusInput = {
   model: { id: 'claude-opus-4-8', display_name: 'Opus 4' },
   workspace: { current_dir: '/home/dev/code/flux', project_dir: '/home/dev/code/flux' },
   context_window: { used_percentage: 82, context_window_size: 200000 },
-  cost: { total_cost_usd: 0.1234 },
+  cost: {
+    total_cost_usd: 0.1234,
+    total_lines_added: 124,
+    total_lines_removed: 18,
+    total_duration_ms: 133000,
+  },
   rate_limits: {
     five_hour: { used_percentage: 61, resets_at: Math.floor(NOW / 1000) + 3600 },
     seven_day: { used_percentage: 19, resets_at: Math.floor(NOW / 1000) + 86400 },
@@ -29,6 +34,9 @@ describe('buildModel', () => {
     expect(m.fiveHour).toBe(61);
     expect(m.weekly).toBe(19);
     expect(m.cost).toBeCloseTo(0.1234);
+    expect(m.linesAdded).toBe(124);
+    expect(m.linesRemoved).toBe(18);
+    expect(m.durationMs).toBe(133000);
     expect(m.cwdName).toBe('flux');
     expect(m.contextWindowSize).toBe(200000);
     expect(m.branch).toBeNull(); // showBranch: false

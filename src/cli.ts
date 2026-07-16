@@ -202,6 +202,7 @@ function runDoctor(): number {
     `Resolved theme   : ${config.theme}`,
     `Progress width   : ${config.progressWidth}`,
     `Colors           : ${config.useColors ? 'on' : 'off'}`,
+    `Notify           : ${config.notify ? `on at ${config.notifyThresholds.join(', ')}%` : 'off'}`,
     `Node             : ${process.version}`,
     '',
     'Sample render (rich payload):',

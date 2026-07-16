@@ -206,7 +206,13 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 | `showCost`             | boolean | `true`         | Show session cost when available.                                                                                                                                                                                                            |
 | `showCountdown`        | boolean | `true`         | Show reset countdowns in the default theme.                                                                                                                                                                                                  |
 | `showWorkingDirectory` | boolean | `false`        | Show the working directory.                                                                                                                                                                                                                  |
+| `showLines`            | boolean | `false`        | Show lines added/removed this session (`+124 −18`), from `cost.total_lines_added/removed`.                                                                                                                                                   |
+| `showSessionTime`      | boolean | `false`        | Show elapsed session time (`⏱ 2h 13m`), from `cost.total_duration_ms`.                                                                                                                                                                       |
+| `showBurnRate`         | boolean | `false`        | Show spend rate in USD per hour (`$0.34/h`), from cost ÷ duration.                                                                                                                                                                           |
 | `hideUnavailable`      | boolean | `true`         | Hide the 5-hour and weekly segments until their data loads, instead of showing `--`. On a fresh session `rate_limits` only appears after the first API response; this avoids a "loading" flicker. Set `false` to always show them with `--`. |
+| `notify`               | boolean | `false`        | Fire a desktop notification when 5-hour or weekly usage first crosses a `notifyThresholds` level. See [Usage notifications](#usage-notifications).                                                                                           |
+| `notifyBell`           | boolean | `true`         | Also emit a terminal bell alongside a usage notification.                                                                                                                                                                                    |
+| `notifyThresholds`     | array   | `[90]`         | Percent levels that trigger a notification, e.g. `[80, 95]`. Cleaned to whole numbers in 1–100.                                                                                                                                              |
 | `refreshSeconds`       | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                                                                                                                                                                             |
 | `progressWidth`        | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                                                                                                                                                                           |
 | `useColors`            | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                                                                                                                                                                                |
@@ -217,6 +223,34 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 | `missingText`          | string  | `"--"`         | Text shown when a value is unavailable.                                                                                                                                                                                                      |
 | `colorThresholds`      | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                                                                                                                                                                              |
 | `warnThresholds`       | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                                                                                                                                                                                   |
+
+## Extra segments
+
+Three segments are available but off by default, so they don't lengthen the line unless you ask for them. Enable any of them in your config:
+
+```json
+{ "showLines": true, "showSessionTime": true, "showBurnRate": true }
+```
+
+- **`showLines`** — lines added/removed this session, e.g. `+124 −18`.
+- **`showSessionTime`** — elapsed session time, e.g. `2h 13m`.
+- **`showBurnRate`** — spend rate in USD per hour, e.g. `$0.34/h` (needs at least ~30s of session time to extrapolate).
+
+All three come straight from the `cost.*` fields Claude Code already provides — no extra work, no network.
+
+## Usage notifications
+
+Get a desktop notification the moment your 5-hour or weekly usage crosses a threshold, so a rate limit never surprises you mid-task. It's off by default; enable it in your config:
+
+```json
+{ "notify": true, "notifyThresholds": [80, 95] }
+```
+
+- Fires once per threshold per window. Crossing 80% notifies; a later crossing of 95% notifies again; it won't re-notify on every refresh.
+- Automatically re-arms when a window rolls over (its reset time changes), so each new 5-hour and weekly window can alert again.
+- **macOS** uses `osascript`; **Linux** uses `notify-send` (install `libnotify` if missing). Other platforms fall back to the terminal bell only.
+- `notifyBell` (default `true`) also rings the terminal bell. Set it `false` to stay silent.
+- Notifications are best-effort and fully sandboxed: if the notifier is missing or fails, the status line renders exactly as normal.
 
 ## Themes
 

@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Verify and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Verify the committed dist/ matches a fresh build
+        run: |
+          npm run build
+          if ! git diff --quiet -- dist; then
+            echo "::error::dist/ is stale. Run 'npm run build' and commit the result before tagging."
+            git --no-pager diff --stat -- dist
+            exit 1
+          fi
+
+      - name: Verify package.json and plugin.json versions match the tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          PLUGIN=$(node -p "require('./.claude-plugin/plugin.json').version")
+          echo "tag=$TAG  package.json=$PKG  plugin.json=$PLUGIN"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$PLUGIN" ]; then
+            echo "::error::Version mismatch — tag v$TAG, package.json $PKG, plugin.json $PLUGIN"
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --notes "See the [changelog](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for what changed. Update an installed plugin with \`/plugin marketplace update flux-code\` then \`/reload-plugins\`."

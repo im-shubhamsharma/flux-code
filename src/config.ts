@@ -27,7 +27,13 @@ export const DEFAULT_CONFIG: Config = {
   showCost: true,
   showCountdown: true,
   showWorkingDirectory: false,
+  showLines: false,
+  showSessionTime: false,
+  showBurnRate: false,
   hideUnavailable: true,
+  notify: false,
+  notifyBell: true,
+  notifyThresholds: [90],
   refreshSeconds: 30,
   progressWidth: 12,
   useColors: true,
@@ -59,7 +65,12 @@ const BOOLEAN_KEYS = [
   'showCost',
   'showCountdown',
   'showWorkingDirectory',
+  'showLines',
+  'showSessionTime',
+  'showBurnRate',
   'hideUnavailable',
+  'notify',
+  'notifyBell',
   'useColors',
   'useIcons',
   'partialBlocks',
@@ -108,6 +119,18 @@ export function mergeConfig(raw: unknown): Config {
 
   if (typeof raw.separator === 'string') cfg.separator = raw.separator;
   if (typeof raw.missingText === 'string') cfg.missingText = raw.missingText;
+
+  if (Array.isArray(raw.notifyThresholds)) {
+    // Keep finite percentages, clamp to [1, 100], dedupe, and sort ascending.
+    const cleaned = [
+      ...new Set(
+        raw.notifyThresholds
+          .filter(isFiniteNumber)
+          .map((n) => Math.max(1, Math.min(100, Math.floor(n)))),
+      ),
+    ].sort((a, b) => a - b);
+    cfg.notifyThresholds = cleaned;
+  }
 
   // `theme` is canonical. When only `layout` is given, it aliases the theme.
   const layout = isLayout(raw.layout) ? raw.layout : undefined;

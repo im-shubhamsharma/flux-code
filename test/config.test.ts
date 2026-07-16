@@ -63,6 +63,30 @@ describe('mergeConfig', () => {
     const cfg = mergeConfig({ colorThresholds: { orange: 75 } });
     expect(cfg.colorThresholds).toEqual({ yellow: 60, orange: 75, red: 90 });
   });
+
+  it('defaults the new opt-in segments off and notifications off', () => {
+    const cfg = mergeConfig({});
+    expect(cfg.showLines).toBe(false);
+    expect(cfg.showSessionTime).toBe(false);
+    expect(cfg.showBurnRate).toBe(false);
+    expect(cfg.notify).toBe(false);
+    expect(cfg.notifyBell).toBe(true);
+    expect(cfg.notifyThresholds).toEqual([90]);
+  });
+
+  it('cleans notifyThresholds: filters, clamps, dedupes, sorts', () => {
+    // 'x' dropped; 200 clamps to 100; 0 and -5 clamp to 1; 80 deduped.
+    const cfg = mergeConfig({ notifyThresholds: [95, 80, 80, 'x', 200, 0, -5] });
+    expect(cfg.notifyThresholds).toEqual([1, 80, 95, 100]);
+  });
+
+  it('accepts an empty notifyThresholds array to disable levels', () => {
+    expect(mergeConfig({ notifyThresholds: [] }).notifyThresholds).toEqual([]);
+  });
+
+  it('ignores a non-array notifyThresholds', () => {
+    expect(mergeConfig({ notifyThresholds: 90 }).notifyThresholds).toEqual([90]);
+  });
 });
 
 describe('loadConfig', () => {
