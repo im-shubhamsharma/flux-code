@@ -66,11 +66,7 @@ const BOOLEAN_KEYS = [
 
 /** Resolve the config file path from env, an explicit argument, or the default. */
 export function configPath(explicit?: string): string {
-  return (
-    process.env.FLUX_CODE_CONFIG ||
-    explicit ||
-    join(homedir(), '.claude', 'flux-code.json')
-  );
+  return process.env.FLUX_CODE_CONFIG || explicit || join(homedir(), '.claude', 'flux-code.json');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

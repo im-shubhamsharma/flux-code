@@ -120,9 +120,7 @@ function runUninstall(args: string[]): number {
     (statusLine.command.includes('flux-code') || statusLine.command.includes(SELF_PATH));
 
   if (!isOurs) {
-    process.stdout.write(
-      'The configured statusLine is not Flux Code; leaving it untouched.\n',
-    );
+    process.stdout.write('The configured statusLine is not Flux Code; leaving it untouched.\n');
     return 0;
   }
 

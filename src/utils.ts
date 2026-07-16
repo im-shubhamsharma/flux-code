@@ -97,10 +97,7 @@ export function getGitBranch(
   if (worktreeBranch) return worktreeBranch;
 
   const dir = cwd || process.cwd();
-  const cacheFile = join(
-    tmpdir(),
-    `flux-code-branch-${sanitizeKey(sessionId || 'default')}`,
-  );
+  const cacheFile = join(tmpdir(), `flux-code-branch-${sanitizeKey(sessionId || 'default')}`);
 
   try {
     const stats = statSync(cacheFile);

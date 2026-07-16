@@ -288,10 +288,7 @@ function sanitizeKey(key) {
 function getGitBranch(cwd, sessionId, worktreeBranch) {
   if (worktreeBranch) return worktreeBranch;
   const dir = cwd || process.cwd();
-  const cacheFile = join2(
-    tmpdir(),
-    `flux-code-branch-${sanitizeKey(sessionId || "default")}`
-  );
+  const cacheFile = join2(tmpdir(), `flux-code-branch-${sanitizeKey(sessionId || "default")}`);
   try {
     const stats = statSync(cacheFile);
     if (Date.now() - stats.mtimeMs < GIT_CACHE_TTL_MS) {
@@ -645,9 +642,7 @@ function runUninstall(args) {
   const statusLine = settings.statusLine;
   const isOurs = typeof statusLine?.command === "string" && (statusLine.command.includes("flux-code") || statusLine.command.includes(SELF_PATH));
   if (!isOurs) {
-    process.stdout.write(
-      "The configured statusLine is not Flux Code; leaving it untouched.\n"
-    );
+    process.stdout.write("The configured statusLine is not Flux Code; leaving it untouched.\n");
     return 0;
   }
   copyFileSync(settingsFile, `${settingsFile}.bak`);
