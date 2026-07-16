@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "flux-code",
   "displayName": "Flux Code",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A live status line: model, git branch, context window, 5-hour and weekly usage, reset countdowns, and session cost.",
   "author": {
     "name": "Flux Code contributors"

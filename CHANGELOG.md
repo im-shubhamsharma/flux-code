@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-17
+
 ### Changed
 
 - The default theme is now `compact` (single line) instead of the multi-line
@@ -46,5 +48,6 @@ All notable changes to this project are documented here. The format follows
 - Vitest unit tests, ESLint, Prettier, and a GitHub Actions CI matrix
   (Node 18, 20, 22).
 
-[Unreleased]: https://github.com/im-shubhamsharma/flux-code/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/im-shubhamsharma/flux-code/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/im-shubhamsharma/flux-code/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/im-shubhamsharma/flux-code/releases/tag/v1.0.0
