@@ -18,11 +18,23 @@ A live status line for [Claude Code](https://code.claude.com) that shows your mo
 - Session cost in USD
 - Working directory (optional)
 
-Every value comes from a field Claude Code documents. When a value is not available, the segment shows `--` instead of failing.
+Every value comes from a field Claude Code documents. When a value is not yet available, the 5-hour, weekly, and cost segments are hidden until they load (set `hideUnavailable: false` to show them as `--` instead). Nothing ever fails on missing data.
 
 ## Preview
 
-Default theme (multi-line):
+Compact theme, one line — **the default**:
+
+```text
+Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13% | $0.12
+```
+
+On a fresh session, before Claude Code reports your rate limits, the 5-hour, weekly, and cost segments are simply omitted (no `--` placeholder) and appear once the data loads:
+
+```text
+Opus 4 | main | Ctx 12%
+```
+
+`default` theme (multi-line dashboard):
 
 ```text
 🤖 Opus 4
@@ -36,12 +48,6 @@ Resets in 2h 13m
 ██░░░░░░░░░░ 19%
 Resets in 5d 0h
 💰 $0.12
-```
-
-Compact theme (single line):
-
-```text
-Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13%
 ```
 
 Minimal theme (single line):
@@ -78,7 +84,7 @@ Three limitations are worth knowing up front. None of them are worked around wit
 
 1. **Git branch is not a Status Line field.** Claude Code sends `workspace.repo` (host, owner, name) and `worktree.branch` (only during `--worktree` sessions), but not the checked-out branch of a normal repo. This tool derives it by running `git branch --show-current`, the same approach the official examples use. The result is cached to a temp file keyed by `session_id` for 3 seconds so large repositories do not slow the status line.
 
-2. **`rate_limits` appears only for Claude.ai Pro and Max subscribers, and only after the first API response.** Each window can be absent on its own. When a window is missing, the 5h or Week segment shows `--`. If you sign in with an API key rather than a subscription, these fields never appear, and the tool hides or dashes them per your config.
+2. **`rate_limits` appears only for Claude.ai Pro and Max subscribers, and only after the first API response.** Each window can be absent on its own. By default (`hideUnavailable: true`) a missing 5h or Week segment is hidden until it loads, so a fresh session shows no `--` flicker; set `hideUnavailable: false` to show `--` instead. If you sign in with an API key rather than a subscription, these fields never appear, so the segments simply stay hidden.
 
 3. **A plugin cannot set the main status line.** The plugin reference states that a plugin's `settings.json` may set only `agent` and `subagentStatusLine`. So the main `statusLine` has to live in your own settings. The `flux-code install` command writes it there for you, and bridges your `refreshSeconds` config onto the API's `refreshInterval`.
 
@@ -162,8 +168,8 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 
 ```json
 {
-  "layout": "default",
-  "theme": "default",
+  "layout": "compact",
+  "theme": "compact",
   "showModel": true,
   "showBranch": true,
   "showContext": true,
@@ -172,6 +178,7 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
   "showCost": true,
   "showCountdown": true,
   "showWorkingDirectory": false,
+  "hideUnavailable": true,
   "refreshSeconds": 30,
   "progressWidth": 12,
   "useColors": true,
@@ -185,28 +192,29 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 }
 ```
 
-| Key                    | Type    | Default        | Meaning                                                                               |
-| ---------------------- | ------- | -------------- | ------------------------------------------------------------------------------------- |
-| `theme`                | string  | `default`      | One of the six themes below. Canonical selector.                                      |
-| `layout`               | string  | `default`      | Alias for `default`, `compact`, or `minimal`. Sets `theme` when `theme` is not given. |
-| `showModel`            | boolean | `true`         | Show the model name.                                                                  |
-| `showBranch`           | boolean | `true`         | Show the git branch. Set `false` to skip the git call entirely.                       |
-| `showContext`          | boolean | `true`         | Show context window usage.                                                            |
-| `showFiveHour`         | boolean | `true`         | Show the 5-hour window.                                                               |
-| `showWeekly`           | boolean | `true`         | Show the weekly window.                                                               |
-| `showCost`             | boolean | `true`         | Show session cost when available.                                                     |
-| `showCountdown`        | boolean | `true`         | Show reset countdowns in the default theme.                                           |
-| `showWorkingDirectory` | boolean | `false`        | Show the working directory.                                                           |
-| `refreshSeconds`       | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                      |
-| `progressWidth`        | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                    |
-| `useColors`            | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                         |
-| `useIcons`             | boolean | `true`         | Emoji and Nerd Font glyphs.                                                           |
-| `partialBlocks`        | boolean | `false`        | Use eighth-block glyphs for smoother bars.                                            |
-| `flashOnCritical`      | boolean | `true`         | Blink the warning icon past the flash threshold.                                      |
-| `separator`            | string  | `" \| "`       | Segment separator for the compact theme.                                              |
-| `missingText`          | string  | `"--"`         | Text shown when a value is unavailable.                                               |
-| `colorThresholds`      | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                       |
-| `warnThresholds`       | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                            |
+| Key                    | Type    | Default        | Meaning                                                                                                                                                                                                                                      |
+| ---------------------- | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`                | string  | `compact`      | One of the six themes below. Canonical selector.                                                                                                                                                                                             |
+| `layout`               | string  | `compact`      | Alias for `default`, `compact`, or `minimal`. Sets `theme` when `theme` is not given.                                                                                                                                                        |
+| `showModel`            | boolean | `true`         | Show the model name.                                                                                                                                                                                                                         |
+| `showBranch`           | boolean | `true`         | Show the git branch. Set `false` to skip the git call entirely.                                                                                                                                                                              |
+| `showContext`          | boolean | `true`         | Show context window usage.                                                                                                                                                                                                                   |
+| `showFiveHour`         | boolean | `true`         | Show the 5-hour window.                                                                                                                                                                                                                      |
+| `showWeekly`           | boolean | `true`         | Show the weekly window.                                                                                                                                                                                                                      |
+| `showCost`             | boolean | `true`         | Show session cost when available.                                                                                                                                                                                                            |
+| `showCountdown`        | boolean | `true`         | Show reset countdowns in the default theme.                                                                                                                                                                                                  |
+| `showWorkingDirectory` | boolean | `false`        | Show the working directory.                                                                                                                                                                                                                  |
+| `hideUnavailable`      | boolean | `true`         | Hide the 5-hour and weekly segments until their data loads, instead of showing `--`. On a fresh session `rate_limits` only appears after the first API response; this avoids a "loading" flicker. Set `false` to always show them with `--`. |
+| `refreshSeconds`       | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                                                                                                                                                                             |
+| `progressWidth`        | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                                                                                                                                                                           |
+| `useColors`            | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                                                                                                                                                                                |
+| `useIcons`             | boolean | `true`         | Emoji and Nerd Font glyphs.                                                                                                                                                                                                                  |
+| `partialBlocks`        | boolean | `false`        | Use eighth-block glyphs for smoother bars.                                                                                                                                                                                                   |
+| `flashOnCritical`      | boolean | `true`         | Blink the warning icon past the flash threshold.                                                                                                                                                                                             |
+| `separator`            | string  | `" \| "`       | Segment separator for the compact theme.                                                                                                                                                                                                     |
+| `missingText`          | string  | `"--"`         | Text shown when a value is unavailable.                                                                                                                                                                                                      |
+| `colorThresholds`      | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                                                                                                                                                                              |
+| `warnThresholds`       | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                                                                                                                                                                                   |
 
 ## Themes
 
@@ -302,7 +310,7 @@ Warn earlier (yellow at 50%, red at 80%):
 ## Troubleshooting
 
 - **The status line is blank.** Run `claude --debug` to see the exit code and stderr of the first invocation. Confirm the workspace trust dialog was accepted, since a status line command needs the same trust as hooks. Run `flux-code doctor` to print the resolved config and a sample render.
-- **5h and Week always show `--`.** Rate limits appear only for Claude.ai Pro and Max subscribers, and only after the first API response of the session. API-key sign-ins do not get these fields.
+- **5h and Week never appear.** Rate limits appear only for Claude.ai Pro and Max subscribers, and only after the first API response of the session. API-key sign-ins do not get these fields, so with the default `hideUnavailable: true` the segments stay hidden. Set `hideUnavailable: false` if you would rather see them as `--`.
 - **The branch is missing.** The directory must be a git repository, and `git` must be on PATH. Detached HEAD shows no branch. Set `showBranch: false` to hide the segment.
 - **Countdowns do not tick while idle.** Set `refreshSeconds` (which `install` writes to `refreshInterval`) so the command re-runs on a timer.
 - **Icons look like boxes.** The `nerd-font` and `powerline` themes need a Nerd Font. Switch to `default`, `compact`, or `plain-text` if you do not have one.

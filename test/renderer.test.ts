@@ -44,14 +44,34 @@ describe('render: compact', () => {
     expect(out).toBe('Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13% | $0.12');
   });
 
-  it('shows -- for a missing rate limit window', () => {
+  it('shows -- for a missing rate limit window when hideUnavailable is off', () => {
     const out = render(
       model({ fiveHour: null, weekly: null }),
-      config({ theme: 'compact', useColors: false, useIcons: false, showCost: false }),
+      config({
+        theme: 'compact',
+        useColors: false,
+        useIcons: false,
+        showCost: false,
+        hideUnavailable: false,
+      }),
       plainCtx(),
     );
     expect(out).toContain('5h --');
     expect(out).toContain('Week --');
+  });
+
+  it('hides not-yet-loaded rate windows by default (hideUnavailable)', () => {
+    const out = render(
+      model({ fiveHour: null, weekly: null }),
+      config({ theme: 'compact', useColors: false, useIcons: false }),
+      plainCtx(),
+    );
+    // No "--" placeholder or 5h/Week labels while the data is still loading.
+    expect(out).not.toContain('5h');
+    expect(out).not.toContain('Week');
+    expect(out).not.toContain('--');
+    // The available segments still render.
+    expect(out).toContain('Ctx 41%');
   });
 
   it('honors show toggles', () => {

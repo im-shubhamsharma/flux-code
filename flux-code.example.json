@@ -1,6 +1,6 @@
 {
-  "layout": "default",
-  "theme": "default",
+  "layout": "compact",
+  "theme": "compact",
   "showModel": true,
   "showBranch": true,
   "showContext": true,
@@ -9,6 +9,7 @@
   "showCost": true,
   "showCountdown": true,
   "showWorkingDirectory": false,
+  "hideUnavailable": true,
   "refreshSeconds": 30,
   "progressWidth": 12,
   "useColors": true,

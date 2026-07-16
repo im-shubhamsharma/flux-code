@@ -17,8 +17,8 @@ import { join } from 'node:path';
 import type { Config, Layout, Theme } from './types';
 
 export const DEFAULT_CONFIG: Config = {
-  layout: 'default',
-  theme: 'default',
+  layout: 'compact',
+  theme: 'compact',
   showModel: true,
   showBranch: true,
   showContext: true,
@@ -27,6 +27,7 @@ export const DEFAULT_CONFIG: Config = {
   showCost: true,
   showCountdown: true,
   showWorkingDirectory: false,
+  hideUnavailable: true,
   refreshSeconds: 30,
   progressWidth: 12,
   useColors: true,
@@ -58,6 +59,7 @@ const BOOLEAN_KEYS = [
   'showCost',
   'showCountdown',
   'showWorkingDirectory',
+  'hideUnavailable',
   'useColors',
   'useIcons',
   'partialBlocks',

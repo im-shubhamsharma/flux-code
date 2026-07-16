@@ -56,7 +56,7 @@ describe('mergeConfig', () => {
   });
 
   it('ignores an unknown theme', () => {
-    expect(mergeConfig({ theme: 'rainbow' }).theme).toBe('default');
+    expect(mergeConfig({ theme: 'rainbow' }).theme).toBe(DEFAULT_CONFIG.theme);
   });
 
   it('merges nested thresholds partially', () => {

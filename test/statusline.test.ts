@@ -81,9 +81,24 @@ describe('produceStatusLine', () => {
       model: { display_name: 'Opus 4' },
       context_window: { used_percentage: 12 },
     };
-    const out = produceStatusLine(sparse, config({ theme: 'compact', useColors: false }), NOW);
+    const out = produceStatusLine(
+      sparse,
+      config({ theme: 'compact', useColors: false, hideUnavailable: false }),
+      NOW,
+    );
     expect(out).toContain('5h --');
     expect(out).toContain('Week --');
+  });
+
+  it('hides missing usage fields by default instead of showing --', () => {
+    const sparse: StatusInput = {
+      model: { display_name: 'Opus 4' },
+      context_window: { used_percentage: 12 },
+    };
+    const out = produceStatusLine(sparse, config({ theme: 'compact', useColors: false }), NOW);
+    expect(out).toContain('Opus 4');
+    expect(out).toContain('Ctx 12%');
+    expect(out).not.toContain('--');
   });
 
   it('never throws on an empty payload', () => {

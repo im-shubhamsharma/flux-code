@@ -166,6 +166,14 @@ export interface Config {
   showCost: boolean;
   showCountdown: boolean;
   showWorkingDirectory: boolean;
+  /**
+   * Hide the 5-hour and weekly segments until their data is available instead
+   * of showing a `--` placeholder. On a fresh session `rate_limits` only
+   * appears after the first API response, so this avoids a "loading" flicker.
+   * Set `false` to always show the segments with `--`. (Cost is always hidden
+   * until available, regardless of this flag.)
+   */
+  hideUnavailable: boolean;
   /** Seconds between forced refreshes. Bridged to `statusLine.refreshInterval`. */
   refreshSeconds: number;
   /** Progress bar width in characters. */

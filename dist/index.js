@@ -11,8 +11,8 @@ import { readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 var DEFAULT_CONFIG = {
-  layout: "default",
-  theme: "default",
+  layout: "compact",
+  theme: "compact",
   showModel: true,
   showBranch: true,
   showContext: true,
@@ -21,6 +21,7 @@ var DEFAULT_CONFIG = {
   showCost: true,
   showCountdown: true,
   showWorkingDirectory: false,
+  hideUnavailable: true,
   refreshSeconds: 30,
   progressWidth: 12,
   useColors: true,
@@ -50,6 +51,7 @@ var BOOLEAN_KEYS = [
   "showCost",
   "showCountdown",
   "showWorkingDirectory",
+  "hideUnavailable",
   "useColors",
   "useIcons",
   "partialBlocks",
@@ -319,6 +321,9 @@ function getGitBranch(cwd, sessionId, worktreeBranch) {
 function pctLabel(value, config) {
   return value === null ? config.missingText : `${Math.round(value)}%`;
 }
+function showPct(value, config) {
+  return value !== null || !config.hideUnavailable;
+}
 function barOptions(config) {
   return { partial: config.partialBlocks };
 }
@@ -360,7 +365,7 @@ function renderDefault(model, config, ctx) {
     );
     lines.push(`${bar(model.context)} ${pctLabel(model.context, config)}`);
   }
-  if (config.showFiveHour) {
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
     lines.push(
       `${iconPrefix(I.fiveHour, config)}5-hour${warnBadge(model.fiveHour, config, ansi, I.warn)}`
     );
@@ -370,7 +375,7 @@ function renderDefault(model, config, ctx) {
       if (resets) lines.push(ansi.cyan(resets));
     }
   }
-  if (config.showWeekly) {
+  if (config.showWeekly && showPct(model.weekly, config)) {
     lines.push(
       `${iconPrefix(I.weekly, config)}Weekly${warnBadge(model.weekly, config, ansi, I.warn)}`
     );
@@ -397,12 +402,12 @@ function renderCompact(model, config, ctx) {
       `Ctx ${paint(model.context)(pctLabel(model.context, config))}${warnBadge(model.context, config, ansi, EMOJI_ICONS.warn)}`
     );
   }
-  if (config.showFiveHour) {
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
     segments.push(
       `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}${warnBadge(model.fiveHour, config, ansi, EMOJI_ICONS.warn)}`
     );
   }
-  if (config.showWeekly) {
+  if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
       `Week ${paint(model.weekly)(pctLabel(model.weekly, config))}${warnBadge(model.weekly, config, ansi, EMOJI_ICONS.warn)}`
     );
@@ -418,9 +423,9 @@ function renderMinimal(model, config, ctx) {
   if (config.showBranch && model.branch) segments.push(ansi.blue(model.branch));
   if (config.showContext)
     segments.push(`Ctx ${paint(model.context)(pctLabel(model.context, config))}`);
-  if (config.showFiveHour)
+  if (config.showFiveHour && showPct(model.fiveHour, config))
     segments.push(`5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`);
-  if (config.showWeekly)
+  if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${paint(model.weekly)(pctLabel(model.weekly, config))}`);
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
   return segments.length > 0 ? segments.join(" \u2502 ") : fallback(model, config, ansi);
@@ -442,8 +447,9 @@ function renderPowerline(model, config, ctx) {
     bg: bg256ForPercent(pct, config.colorThresholds)
   });
   if (config.showContext) segments.push(pctSeg("CTX", model.context));
-  if (config.showFiveHour) segments.push(pctSeg("5H", model.fiveHour));
-  if (config.showWeekly) segments.push(pctSeg("7D", model.weekly));
+  if (config.showFiveHour && showPct(model.fiveHour, config))
+    segments.push(pctSeg("5H", model.fiveHour));
+  if (config.showWeekly && showPct(model.weekly, config)) segments.push(pctSeg("7D", model.weekly));
   if (config.showCost && model.cost !== null) {
     segments.push({ text: ` ${formatCost(model.cost)} `, fg: white, bg: 22 });
   }
@@ -480,12 +486,12 @@ function renderNerdFont(model, config, ctx) {
       `${useIcons ? `${I.context} ` : "ctx "}${paint(model.context)(pctLabel(model.context, config))}`
     );
   }
-  if (config.showFiveHour) {
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
     segments.push(
       `${useIcons ? `${I.fiveHour} ` : "5h "}${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`
     );
   }
-  if (config.showWeekly) {
+  if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
       `${useIcons ? `${I.weekly} ` : "7d "}${paint(model.weekly)(pctLabel(model.weekly, config))}`
     );
@@ -506,8 +512,10 @@ function renderPlainText(model, config) {
       `Ctx ${pctLabel(model.context, config)} [${progressBar(model.context, config.progressWidth, barOpts)}]`
     );
   }
-  if (config.showFiveHour) segments.push(`5h ${pctLabel(model.fiveHour, config)}`);
-  if (config.showWeekly) segments.push(`Week ${pctLabel(model.weekly, config)}`);
+  if (config.showFiveHour && showPct(model.fiveHour, config))
+    segments.push(`5h ${pctLabel(model.fiveHour, config)}`);
+  if (config.showWeekly && showPct(model.weekly, config))
+    segments.push(`Week ${pctLabel(model.weekly, config)}`);
   if (config.showCost && model.cost !== null) segments.push(formatCost(model.cost));
   return segments.length > 0 ? segments.join(" | ") : model.modelName ?? config.missingText;
 }

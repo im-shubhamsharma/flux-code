@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The default theme is now `compact` (single line) instead of the multi-line
+  `default` dashboard.
+
+### Added
+
+- `hideUnavailable` config option (default `true`): the 5-hour and weekly
+  segments are hidden until their data loads instead of showing a `--`
+  placeholder, so a fresh session no longer flickers a "loading" state. Set it
+  to `false` to restore the previous `--` behavior.
+
 ## [1.0.0] - 2026-07-16
 
 ### Added
