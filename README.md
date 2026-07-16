@@ -1,0 +1,333 @@
+# Flux Code
+
+A live status line for [Claude Code](https://code.claude.com) that shows your model, git branch, context window usage, 5-hour and weekly rate limits, reset countdowns, and session cost. It reads the official Status Line JSON payload on stdin and prints a formatted line. No polling, no `/usage` scraping, no undocumented APIs.
+
+[![CI](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml/badge.svg)](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/flux-code.svg)](https://www.npmjs.com/package/flux-code)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+
+---
+
+## What it shows
+
+- Model name (bold)
+- Git branch (blue)
+- Context window usage with a color-coded progress bar
+- 5-hour usage window with a reset countdown
+- Weekly (7-day) usage window with a reset countdown
+- Session cost in USD
+- Working directory (optional)
+
+Every value comes from a field Claude Code documents. When a value is not available, the segment shows `--` instead of failing.
+
+## Preview
+
+Default theme (multi-line):
+
+```text
+🤖 Opus 4
+🌿 feature/request-flow
+🧠 Context ⚠
+██████████░░ 82%
+⚡ 5-hour
+███████░░░░░ 61%
+Resets in 2h 13m
+📅 Weekly
+██░░░░░░░░░░ 19%
+Resets in 5d 0h
+💰 $0.12
+```
+
+Compact theme (single line):
+
+```text
+Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13%
+```
+
+Minimal theme (single line):
+
+```text
+Opus 4 │ 5h 24% │ Week 11%
+```
+
+Plain-text theme (ASCII only, no color, safe for tmux, CI, and logs):
+
+```text
+Opus 4 | feature/auth | Ctx 82% [##########--] | 5h 61% | Week 19% | $0.12
+```
+
+`powerline` and `nerd-font` themes are also included. Run `flux-code preview` to see all six in your own terminal with color.
+
+## How it reads your usage (and what the API supports)
+
+This project is built only on fields in the official [Status Line reference](https://code.claude.com/docs/en/statusline). Here is exactly where each value comes from:
+
+| What you see      | Source field                            | Native? | Notes                                            |
+| ----------------- | --------------------------------------- | ------- | ------------------------------------------------ |
+| Model             | `model.display_name`                    | Yes     |                                                  |
+| Context usage     | `context_window.used_percentage`        | Yes     | Pre-calculated by Claude Code, input tokens only |
+| 5-hour usage      | `rate_limits.five_hour.used_percentage` | Yes     | See availability note below                      |
+| 5-hour reset      | `rate_limits.five_hour.resets_at`       | Yes     | Unix epoch seconds, rendered as a countdown      |
+| Weekly usage      | `rate_limits.seven_day.used_percentage` | Yes     | The API calls this the 7-day window              |
+| Weekly reset      | `rate_limits.seven_day.resets_at`       | Yes     |                                                  |
+| Session cost      | `cost.total_cost_usd`                   | Yes     | Client-side estimate, resets on `/clear`         |
+| Working directory | `workspace.current_dir`                 | Yes     |                                                  |
+| Git branch        | (derived)                               | No      | See the note below                               |
+
+Three limitations are worth knowing up front. None of them are worked around with hidden APIs.
+
+1. **Git branch is not a Status Line field.** Claude Code sends `workspace.repo` (host, owner, name) and `worktree.branch` (only during `--worktree` sessions), but not the checked-out branch of a normal repo. This tool derives it by running `git branch --show-current`, the same approach the official examples use. The result is cached to a temp file keyed by `session_id` for 3 seconds so large repositories do not slow the status line.
+
+2. **`rate_limits` appears only for Claude.ai Pro and Max subscribers, and only after the first API response.** Each window can be absent on its own. When a window is missing, the 5h or Week segment shows `--`. If you sign in with an API key rather than a subscription, these fields never appear, and the tool hides or dashes them per your config.
+
+3. **A plugin cannot set the main status line.** The plugin reference states that a plugin's `settings.json` may set only `agent` and `subagentStatusLine`. So the main `statusLine` has to live in your own settings. The `flux-code install` command writes it there for you, and bridges your `refreshSeconds` config onto the API's `refreshInterval`.
+
+## Requirements
+
+- Node.js 18 or newer
+- Claude Code 2.x (the `rate_limits` and `context_window` fields require a recent version)
+- `git` on your PATH if you want the branch segment
+
+## Install
+
+### Option A: npm (recommended)
+
+```bash
+npm install -g flux-code
+flux-code install
+```
+
+`install` writes a `statusLine` block into `~/.claude/settings.json`, backs up the previous file to `settings.json.bak`, and seeds a default `~/.claude/flux-code.json` you can edit. Restart Claude Code or send one message to see it.
+
+To scope it to a single project instead of your whole account:
+
+```bash
+flux-code install --project   # writes ./.claude/settings.json
+```
+
+### Option B: Claude Code plugin
+
+```text
+/plugin marketplace add im-shubhamsharma/flux-code
+/plugin install flux-code@flux-code
+```
+
+The plugin adds a `/flux-code` command that walks you through setup. Because a plugin cannot set the main status line itself (see limitation 3 above), the command still runs the installer for you.
+
+### Option C: Manual
+
+If you would rather wire it yourself, add this to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "flux-code",
+    "refreshInterval": 30
+  }
+}
+```
+
+`refreshInterval` re-runs the command every N seconds so the reset countdowns tick while the session is idle. The minimum is 1.
+
+### Per-platform notes
+
+- **macOS and Linux**: nothing extra. The global bin is on your PATH after `npm install -g`.
+- **Windows**: Claude Code runs status line commands through Git Bash when it is installed, otherwise PowerShell. If you point `command` at a script path, write it with forward slashes (`C:/Users/you/...`). The global `flux-code` bin works directly.
+- **nvm / fnm users**: the global bin path can change per Node version. If the status line goes blank after switching Node, run `flux-code install` again to rewrite the absolute path, or set `command` to the plain name `flux-code` so PATH resolves it.
+
+## Configuration
+
+Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_CODE_CONFIG` environment variable. Every key is optional. Unknown or wrongly-typed keys are ignored, and a missing or malformed file falls back to defaults, so the status line never crashes on a bad config.
+
+```json
+{
+  "layout": "default",
+  "theme": "default",
+  "showModel": true,
+  "showBranch": true,
+  "showContext": true,
+  "showFiveHour": true,
+  "showWeekly": true,
+  "showCost": true,
+  "showCountdown": true,
+  "showWorkingDirectory": false,
+  "refreshSeconds": 30,
+  "progressWidth": 12,
+  "useColors": true,
+  "useIcons": true,
+  "partialBlocks": false,
+  "flashOnCritical": true,
+  "separator": " | ",
+  "missingText": "--",
+  "colorThresholds": { "yellow": 60, "orange": 80, "red": 90 },
+  "warnThresholds": { "warn": 80, "danger": 90, "flash": 95 }
+}
+```
+
+| Key                    | Type    | Default        | Meaning                                                                               |
+| ---------------------- | ------- | -------------- | ------------------------------------------------------------------------------------- |
+| `theme`                | string  | `default`      | One of the six themes below. Canonical selector.                                      |
+| `layout`               | string  | `default`      | Alias for `default`, `compact`, or `minimal`. Sets `theme` when `theme` is not given. |
+| `showModel`            | boolean | `true`         | Show the model name.                                                                  |
+| `showBranch`           | boolean | `true`         | Show the git branch. Set `false` to skip the git call entirely.                       |
+| `showContext`          | boolean | `true`         | Show context window usage.                                                            |
+| `showFiveHour`         | boolean | `true`         | Show the 5-hour window.                                                               |
+| `showWeekly`           | boolean | `true`         | Show the weekly window.                                                               |
+| `showCost`             | boolean | `true`         | Show session cost when available.                                                     |
+| `showCountdown`        | boolean | `true`         | Show reset countdowns in the default theme.                                           |
+| `showWorkingDirectory` | boolean | `false`        | Show the working directory.                                                           |
+| `refreshSeconds`       | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                      |
+| `progressWidth`        | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                    |
+| `useColors`            | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                         |
+| `useIcons`             | boolean | `true`         | Emoji and Nerd Font glyphs.                                                           |
+| `partialBlocks`        | boolean | `false`        | Use eighth-block glyphs for smoother bars.                                            |
+| `flashOnCritical`      | boolean | `true`         | Blink the warning icon past the flash threshold.                                      |
+| `separator`            | string  | `" \| "`       | Segment separator for the compact theme.                                              |
+| `missingText`          | string  | `"--"`         | Text shown when a value is unavailable.                                               |
+| `colorThresholds`      | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                       |
+| `warnThresholds`       | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                            |
+
+## Themes
+
+Set `theme` (or `layout`) to one of:
+
+| Theme        | Shape                               | Best for                                     |
+| ------------ | ----------------------------------- | -------------------------------------------- |
+| `default`    | Multi-line, emoji, bars, countdowns | A dashboard view at the bottom of the window |
+| `compact`    | One line, pipe-separated            | Keeping everything on one row                |
+| `minimal`    | One line, thin separators           | Only the numbers that matter                 |
+| `powerline`  | One line, colored segments          | Powerline or Nerd Font terminals             |
+| `nerd-font`  | One line, glyph icons               | Nerd Font terminals                          |
+| `plain-text` | ASCII only, no color                | tmux, CI logs, or terminals without ANSI     |
+
+## Progress bars
+
+Bars use Unicode block characters and follow `progressWidth`:
+
+```text
+width 10, 60%   ██████░░░░
+width 20, 70%   ██████████████░░░░░░
+```
+
+Set `partialBlocks: true` for sub-cell resolution with eighth-block glyphs (`▏▎▍▌▋▊▉`), which makes the bar move more smoothly between whole cells.
+
+## Colors
+
+Segment color follows usage against `colorThresholds`:
+
+| Usage      | Color              |
+| ---------- | ------------------ |
+| 0 to 59%   | green              |
+| 60 to 79%  | yellow             |
+| 80 to 89%  | orange (256-color) |
+| 90 to 100% | red                |
+
+Reset countdowns are cyan, the model name is bold, and the branch is blue. Orange uses a 256-color code, which every modern terminal supports. Colors turn off when `useColors` is `false`, when the `NO_COLOR` environment variable is set, or when the theme is `plain-text`.
+
+## Warnings
+
+When a usage value crosses a `warnThresholds` boundary, a badge appears next to it:
+
+- 80% and up: yellow warning icon
+- 90% and up: red warning icon
+- 95% and up: the icon blinks, if your terminal honors the ANSI blink code and `flashOnCritical` is on
+
+## Commands
+
+```text
+flux-code                 Render a status line from JSON on stdin
+flux-code install         Wire the status line into settings.json
+flux-code install --project   Write to ./.claude/settings.json
+flux-code uninstall       Remove the status line from settings.json
+flux-code preview [theme] Preview one or all themes
+flux-code doctor          Print resolved config and sample output
+flux-code version         Print the version
+flux-code help            Show help
+```
+
+Test it by hand with a mock payload:
+
+```bash
+echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":25},"session_id":"test"}' \
+  | flux-code
+```
+
+## Customization examples
+
+A quiet single-line setup with only the numbers:
+
+```json
+{ "theme": "minimal", "showBranch": false, "showContext": false }
+```
+
+A wide, high-contrast dashboard:
+
+```json
+{ "theme": "default", "progressWidth": 20, "partialBlocks": true }
+```
+
+A monochrome line for a terminal without color:
+
+```json
+{ "theme": "plain-text" }
+```
+
+Warn earlier (yellow at 50%, red at 80%):
+
+```json
+{ "colorThresholds": { "yellow": 50, "orange": 70, "red": 80 } }
+```
+
+## Troubleshooting
+
+- **The status line is blank.** Run `claude --debug` to see the exit code and stderr of the first invocation. Confirm the workspace trust dialog was accepted, since a status line command needs the same trust as hooks. Run `flux-code doctor` to print the resolved config and a sample render.
+- **5h and Week always show `--`.** Rate limits appear only for Claude.ai Pro and Max subscribers, and only after the first API response of the session. API-key sign-ins do not get these fields.
+- **The branch is missing.** The directory must be a git repository, and `git` must be on PATH. Detached HEAD shows no branch. Set `showBranch: false` to hide the segment.
+- **Countdowns do not tick while idle.** Set `refreshSeconds` (which `install` writes to `refreshInterval`) so the command re-runs on a timer.
+- **Icons look like boxes.** The `nerd-font` and `powerline` themes need a Nerd Font. Switch to `default`, `compact`, or `plain-text` if you do not have one.
+- **Colors show as raw escape codes.** Your terminal may not support ANSI. Set `useColors: false` or use the `plain-text` theme.
+
+## FAQ
+
+**Does this call the `/usage` command or scrape anything?** No. It reads the `rate_limits` object that Claude Code already passes to the status line. There is no network call and no scraping.
+
+**Does it cost API tokens?** No. The docs state the status line runs locally and does not consume API tokens.
+
+**Can the plugin set my status line automatically?** No, and no plugin can. Claude Code only lets a plugin ship `agent` and `subagentStatusLine` defaults. Use `flux-code install` to write the main `statusLine` into your settings.
+
+**Why does cost reset when I run `/clear`?** That is Claude Code's behavior for `cost.total_cost_usd` since v2.1.211. This tool just displays the field.
+
+**Weekly or 7-day?** Same window. The API field is `seven_day`. This tool labels it "Week" for brevity.
+
+## Development
+
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run preview
+```
+
+The code is TypeScript, ESM, strict mode, with zero runtime dependencies. Modules:
+
+| File                | Responsibility                               |
+| ------------------- | -------------------------------------------- |
+| `src/types.ts`      | Types for the Status Line payload and config |
+| `src/config.ts`     | Load, validate, and merge config             |
+| `src/colors.ts`     | ANSI palette and threshold coloring          |
+| `src/progress.ts`   | Progress bar generation                      |
+| `src/countdown.ts`  | Reset countdown and duration formatting      |
+| `src/icons.ts`      | Emoji, Nerd Font, and Powerline glyph sets   |
+| `src/utils.ts`      | stdin, JSON parsing, and git branch lookup   |
+| `src/renderer.ts`   | Pure rendering for all six themes            |
+| `src/statusline.ts` | Normalize a payload and render it            |
+| `src/cli.ts`        | `install`, `uninstall`, `preview`, `doctor`  |
+| `src/index.ts`      | Entry point                                  |
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

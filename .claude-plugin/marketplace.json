@@ -1,0 +1,13 @@
+{
+  "name": "flux-code",
+  "owner": {
+    "name": "Flux Code contributors"
+  },
+  "plugins": [
+    {
+      "name": "flux-code",
+      "source": "./",
+      "description": "A live status line: model, git branch, context window, 5-hour and weekly usage, reset countdowns, and session cost."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "layout": "default",
+  "theme": "default",
+  "showModel": true,
+  "showBranch": true,
+  "showContext": true,
+  "showFiveHour": true,
+  "showWeekly": true,
+  "showCost": true,
+  "showCountdown": true,
+  "showWorkingDirectory": false,
+  "refreshSeconds": 30,
+  "progressWidth": 12,
+  "useColors": true,
+  "useIcons": true,
+  "partialBlocks": false,
+  "flashOnCritical": true,
+  "separator": " | ",
+  "missingText": "--",
+  "colorThresholds": { "yellow": 60, "orange": 80, "red": 90 },
+  "warnThresholds": { "warn": 80, "danger": 90, "flash": 95 }
+}
