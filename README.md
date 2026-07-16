@@ -322,6 +322,8 @@ Warn earlier (yellow at 50%, red at 80%):
 
 **Does it cost API tokens?** No. The docs state the status line runs locally and does not consume API tokens.
 
+**Why do the 5-hour and weekly numbers take a moment to appear when I first launch Claude Code?** Because the plugin does not fetch or calculate them — Claude Code hands them to the status line in its JSON payload (`rate_limits.five_hour` and `rate_limits.seven_day`), and it only fills those in **after the first API response of the session**. On a fresh launch, before your first request completes a round-trip, the fields are not in the payload yet, so there is nothing to show. They appear on the next render once your first message returns. The plugin itself renders instantly; nothing can make the data arrive sooner. This is also why `hideUnavailable` defaults to `true` — the segments stay hidden during that startup window instead of flashing `--`, then pop in when the data lands. (API-key sign-ins never receive `rate_limits`, so those segments stay hidden for the whole session.)
+
 **Can the plugin set my status line automatically?** No, and no plugin can. Claude Code only lets a plugin ship `agent` and `subagentStatusLine` defaults. Use `flux-code install` to write the main `statusLine` into your settings.
 
 **Why does cost reset when I run `/clear`?** That is Claude Code's behavior for `cost.total_cost_usd` since v2.1.211. This tool just displays the field.

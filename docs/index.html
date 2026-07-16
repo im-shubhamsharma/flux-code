@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>flux-code — a live status line for Claude Code</title>
+    <meta
+      name="description"
+      content="flux-code is a self-contained Claude Code plugin that renders a live status line: model, git branch, context window, 5-hour and weekly usage, reset countdowns, and session cost."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --bg-soft: #111721;
+        --panel: #151c28;
+        --panel-2: #1b2433;
+        --border: #26303f;
+        --text: #e6edf3;
+        --muted: #9aa7b8;
+        --faint: #6b7889;
+        --accent: #35d0ba;
+        --accent-2: #7c8cff;
+        --grad: linear-gradient(120deg, #35d0ba 0%, #6ad0ff 45%, #7c8cff 100%);
+        --green: #4ec9a0;
+        --yellow: #e6d24a;
+        --orange: #ff9d4d;
+        --red: #ff5f6b;
+        --blue: #6ab0ff;
+        --cyan: #45d3e0;
+        --radius: 14px;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f8fb;
+          --bg-soft: #eef2f7;
+          --panel: #ffffff;
+          --panel-2: #f2f5f9;
+          --border: #dde5ee;
+          --text: #16202c;
+          --muted: #56657a;
+          --faint: #8593a5;
+          --grad: linear-gradient(120deg, #17b3a0 0%, #2f9fe0 45%, #5566ee 100%);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.92em;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+
+      /* Nav */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(10px);
+        background: color-mix(in srgb, var(--bg) 82%, transparent);
+        border-bottom: 1px solid var(--border);
+      }
+      nav .wrap {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 60px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-family: var(--mono);
+        font-weight: 700;
+        color: var(--text);
+        font-size: 1.02rem;
+      }
+      .brand .spark {
+        font-size: 1.15rem;
+      }
+      .brand:hover {
+        text-decoration: none;
+      }
+      .nav-links {
+        margin-left: auto;
+        display: flex;
+        gap: 22px;
+        font-size: 0.92rem;
+      }
+      .nav-links a {
+        color: var(--muted);
+      }
+      .nav-links a:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+      @media (max-width: 640px) {
+        .nav-links {
+          display: none;
+        }
+      }
+
+      /* Hero */
+      header.hero {
+        padding: 72px 0 40px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      header.hero::before {
+        content: "";
+        position: absolute;
+        inset: -40% 0 auto 0;
+        height: 480px;
+        background: radial-gradient(
+          60% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 18%, transparent),
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .eyebrow {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        border: 1px solid var(--border);
+        background: var(--panel);
+        padding: 5px 12px;
+        border-radius: 999px;
+        margin-bottom: 22px;
+      }
+      header.hero h1 {
+        font-size: clamp(2.2rem, 6vw, 3.6rem);
+        margin: 0 0 14px;
+      }
+      .gradient {
+        background: var(--grad);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      header.hero p.lead {
+        font-size: clamp(1.02rem, 2.4vw, 1.2rem);
+        color: var(--muted);
+        max-width: 620px;
+        margin: 0 auto 30px;
+      }
+      .cta {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 34px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: 1px solid transparent;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--grad);
+        color: #04121a;
+      }
+      .btn-primary:hover {
+        text-decoration: none;
+        filter: brightness(1.06);
+      }
+      .btn-ghost {
+        background: var(--panel);
+        border-color: var(--border);
+        color: var(--text);
+      }
+      .btn-ghost:hover {
+        text-decoration: none;
+        border-color: var(--accent);
+      }
+      .badges {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        color: var(--faint);
+      }
+      .badges span {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 3px 9px;
+        background: var(--panel);
+      }
+
+      /* Terminal */
+      .term {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+        text-align: left;
+      }
+      .term-bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 14px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+      }
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+      }
+      .dot.r {
+        background: #ff5f57;
+      }
+      .dot.y {
+        background: #febc2e;
+      }
+      .dot.g {
+        background: #28c840;
+      }
+      .term-title {
+        margin-left: 8px;
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        color: var(--faint);
+      }
+      .term-body {
+        padding: 18px 18px;
+        font-family: var(--mono);
+        font-size: 0.9rem;
+        line-height: 1.9;
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .hero-term {
+        max-width: 720px;
+        margin: 0 auto 26px;
+      }
+      /* ANSI-ish colors */
+      .c-model {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .c-branch {
+        color: var(--blue);
+      }
+      .c-green {
+        color: var(--green);
+      }
+      .c-yellow {
+        color: var(--yellow);
+      }
+      .c-orange {
+        color: var(--orange);
+      }
+      .c-red {
+        color: var(--red);
+      }
+      .c-cyan {
+        color: var(--cyan);
+      }
+      .c-cost {
+        color: var(--yellow);
+      }
+      .c-dim {
+        color: var(--faint);
+      }
+      .sep {
+        color: var(--faint);
+      }
+      .bar-f {
+        color: var(--green);
+      }
+      .bar-o {
+        color: var(--orange);
+      }
+      .bar-y {
+        color: var(--yellow);
+      }
+      .bar-e {
+        color: color-mix(in srgb, var(--faint) 55%, transparent);
+      }
+
+      /* Sections */
+      section {
+        padding: 56px 0;
+        border-top: 1px solid var(--border);
+      }
+      section h2 {
+        font-size: clamp(1.5rem, 3.4vw, 2rem);
+        margin: 0 0 8px;
+      }
+      section .sub {
+        color: var(--muted);
+        margin: 0 0 30px;
+        max-width: 640px;
+      }
+      .anchor {
+        scroll-margin-top: 78px;
+      }
+
+      /* Feature grid */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+      .card .ic {
+        font-size: 1.4rem;
+      }
+      .card h3 {
+        margin: 10px 0 6px;
+        font-size: 1.05rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      /* Steps */
+      ol.steps {
+        counter-reset: s;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 14px;
+      }
+      ol.steps li {
+        counter-increment: s;
+        position: relative;
+        padding: 16px 18px 16px 56px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      ol.steps li::before {
+        content: counter(s);
+        position: absolute;
+        left: 16px;
+        top: 15px;
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--grad);
+        color: #04121a;
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      ol.steps li strong {
+        display: block;
+        margin-bottom: 2px;
+      }
+      ol.steps li p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      /* Code block */
+      .code {
+        position: relative;
+        background: var(--bg-soft);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin: 14px 0;
+      }
+      .code pre {
+        margin: 0;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 0.86rem;
+        line-height: 1.7;
+        color: var(--text);
+      }
+      .code .cmt {
+        color: var(--faint);
+      }
+      .code .cmd {
+        color: var(--accent);
+      }
+      .copy {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        font-family: var(--sans);
+        font-size: 0.74rem;
+        color: var(--muted);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 9px;
+        cursor: pointer;
+      }
+      .copy:hover {
+        color: var(--text);
+        border-color: var(--accent);
+      }
+
+      /* Themes gallery */
+      .themes {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 720px) {
+        .themes {
+          grid-template-columns: 1fr;
+        }
+      }
+      .theme-card .term-title .tag {
+        color: var(--accent);
+      }
+      .theme-note {
+        font-size: 0.86rem;
+        color: var(--muted);
+        padding: 0 18px 16px;
+      }
+
+      /* Table */
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.9rem;
+        min-width: 560px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        background: var(--panel-2);
+        font-weight: 600;
+        color: var(--text);
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      td code {
+        color: var(--accent);
+      }
+      td .def {
+        color: var(--faint);
+        font-family: var(--mono);
+        font-size: 0.82rem;
+      }
+
+      /* Recipes */
+      .recipe h3 {
+        margin: 22px 0 0;
+        font-size: 1rem;
+      }
+
+      /* FAQ */
+      details {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px 18px;
+        margin-bottom: 10px;
+      }
+      details summary {
+        cursor: pointer;
+        padding: 12px 0;
+        font-weight: 600;
+        list-style: none;
+      }
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+      details summary::before {
+        content: "+";
+        color: var(--accent);
+        font-family: var(--mono);
+        margin-right: 10px;
+      }
+      details[open] summary::before {
+        content: "\2013";
+      }
+      details p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 34px 0 60px;
+        color: var(--faint);
+        font-size: 0.88rem;
+      }
+      footer .wrap {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      footer a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="wrap">
+        <a class="brand" href="#top"><span class="spark">⚡</span> flux-code</a>
+        <div class="nav-links">
+          <a href="#install">Install</a>
+          <a href="#themes">Themes</a>
+          <a href="#configure">Configure</a>
+          <a href="#faq">FAQ</a>
+          <a href="https://github.com/im-shubhamsharma/flux-code">GitHub ↗</a>
+        </div>
+      </div>
+    </nav>
+
+    <a id="top"></a>
+    <header class="hero">
+      <div class="wrap">
+        <span class="eyebrow">Claude Code · status line plugin</span>
+        <h1>Know your usage <span class="gradient">at a glance</span></h1>
+        <p class="lead">
+          A live status line for Claude Code — model, git branch, context window, 5-hour &amp;
+          weekly limits, reset countdowns, and session cost. Built on official fields. No scraping,
+          no polling, no runtime dependencies.
+        </p>
+
+        <div class="hero-term term">
+          <div class="term-bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="term-title">claude — status line</span>
+          </div>
+          <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">feature/auth</span> <span class="sep">|</span> Ctx <span class="c-orange">82%</span> ⚠ <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
+        </div>
+
+        <div class="cta">
+          <a class="btn btn-primary" href="#install">⚡ Install</a>
+          <a class="btn btn-ghost" href="https://github.com/im-shubhamsharma/flux-code"
+            >View on GitHub</a
+          >
+        </div>
+        <div class="badges">
+          <span>MIT licensed</span>
+          <span>Node ≥ 18</span>
+          <span>Zero runtime deps</span>
+          <span>6 themes</span>
+        </div>
+      </div>
+    </header>
+
+    <section>
+      <div class="wrap">
+        <div class="grid">
+          <div class="card">
+            <div class="ic">🎯</div>
+            <h3>Native data only</h3>
+            <p>
+              Reads the fields Claude Code already passes to the status line. No <code>/usage</code>
+              scraping, no network calls, no undocumented APIs.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">🪶</div>
+            <h3>Self-contained plugin</h3>
+            <p>
+              Ships a pre-built bundle with zero runtime dependencies. Install straight from GitHub —
+              nothing to compile, no npm package required.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">🎨</div>
+            <h3>Six themes</h3>
+            <p>
+              Compact, a multi-line dashboard, minimal, powerline, nerd-font, and a plain-text mode
+              safe for tmux, CI, and logs.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">⏳</div>
+            <h3>No loading flicker</h3>
+            <p>
+              Usage segments stay hidden until Claude Code reports them, then appear — no
+              <code>--</code> placeholders on a fresh session.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="anchor" id="install">
+      <div class="wrap">
+        <h2>Install</h2>
+        <p class="sub">
+          flux-code is a self-contained Claude Code plugin. Run these inside Claude Code — nothing to
+          build.
+        </p>
+        <ol class="steps">
+          <li>
+            <strong>Add the marketplace</strong>
+            <div class="code">
+              <button class="copy">Copy</button>
+              <pre><span class="cmd">/plugin marketplace add</span> im-shubhamsharma/flux-code</pre>
+            </div>
+            <p>Registers this GitHub repo as a plugin marketplace.</p>
+          </li>
+          <li>
+            <strong>Install the plugin</strong>
+            <div class="code">
+              <button class="copy">Copy</button>
+              <pre><span class="cmd">/plugin install</span> flux-code@flux-code</pre>
+            </div>
+            <p>The name is <code>flux-code@flux-code</code> — plugin name @ marketplace name.</p>
+          </li>
+          <li>
+            <strong>Run setup</strong>
+            <div class="code">
+              <button class="copy">Copy</button>
+              <pre><span class="cmd">/flux-code</span></pre>
+            </div>
+            <p>
+              Writes the <code>statusLine</code> block into <code>~/.claude/settings.json</code> and
+              seeds a default <code>~/.claude/flux-code.json</code>. Send one message (or restart
+              Claude Code) to see it. A plugin can't set the main status line itself, so this step
+              wires it for you.
+            </p>
+          </li>
+        </ol>
+
+        <h3 style="margin-top: 30px">Updating later</h3>
+        <div class="code">
+          <button class="copy">Copy</button>
+          <pre><span class="cmd">/plugin marketplace update</span> flux-code
+<span class="cmd">/reload-plugins</span></pre>
+        </div>
+        <p style="color: var(--muted); font-size: 0.92rem">
+          The marketplace update git-pulls the latest release; <code>/reload-plugins</code> applies
+          it in-session. Your existing <code>~/.claude/flux-code.json</code> is left untouched — edit
+          it (or delete it and re-run <code>/flux-code</code>) to pick up new defaults.
+        </p>
+
+        <h3 style="margin-top: 30px">Prefer source? (development / manual)</h3>
+        <div class="code">
+          <button class="copy">Copy</button>
+          <pre><span class="cmd">git clone</span> https://github.com/im-shubhamsharma/flux-code.git
+<span class="cmd">cd</span> flux-code && <span class="cmd">npm install</span> && <span class="cmd">npm run build</span>
+<span class="cmd">node</span> dist/index.js install   <span class="cmt"># or: npm link && flux-code install</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="anchor" id="themes">
+      <div class="wrap">
+        <h2>Themes</h2>
+        <p class="sub">
+          Set <code>theme</code> in your config. <code>compact</code> is the default; every theme
+          degrades gracefully when a value isn't available yet.
+        </p>
+        <div class="themes">
+          <div class="term theme-card">
+            <div class="term-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="term-title"><span class="tag">compact</span> · default</span>
+            </div>
+            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">main</span> <span class="sep">|</span> Ctx <span class="c-green">41%</span> <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
+            <p class="theme-note">One line, pipe-separated. The everyday default.</p>
+          </div>
+
+          <div class="term theme-card">
+            <div class="term-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="term-title"><span class="tag">default</span> · dashboard</span>
+            </div>
+            <div class="term-body">🤖 <span class="c-model">Opus 4.8</span>
+🌿 <span class="c-branch">feature/auth</span>
+🧠 Context <span class="c-orange">⚠</span>
+<span class="bar-o">██████████</span><span class="bar-e">░░</span> 82%
+⚡ 5-hour
+<span class="bar-y">███████</span><span class="bar-e">░░░░░</span> 61%
+<span class="c-cyan">Resets in 2h 13m</span>
+💰 <span class="c-cost">$0.12</span></div>
+            <p class="theme-note">Multi-line, with bars and reset countdowns.</p>
+          </div>
+
+          <div class="term theme-card">
+            <div class="term-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="term-title"><span class="tag">minimal</span></span>
+            </div>
+            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">│</span> 5h <span class="c-yellow">61%</span> <span class="sep">│</span> Week <span class="c-green">19%</span></div>
+            <p class="theme-note">Only the numbers that matter, thin separators.</p>
+          </div>
+
+          <div class="term theme-card">
+            <div class="term-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="term-title"><span class="tag">plain-text</span></span>
+            </div>
+            <div class="term-body"><span class="c-dim">Opus 4.8 | main | Ctx 82% [##########--] | 5h 61% | Week 19% | $0.12</span></div>
+            <p class="theme-note">ASCII only, no color — safe for tmux, CI, and logs.</p>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 0.9rem; margin-top: 16px">
+          <code>powerline</code> and <code>nerd-font</code> are also included. Run
+          <code>flux-code preview</code> to see all six in your own terminal with color.
+        </p>
+      </div>
+    </section>
+
+    <section class="anchor" id="configure">
+      <div class="wrap">
+        <h2>Configure</h2>
+        <p class="sub">
+          Config lives at <code>~/.claude/flux-code.json</code> (override with
+          <code>FLUX_CODE_CONFIG</code>). Every key is optional; unknown or malformed values fall
+          back to defaults, so the status line never crashes.
+        </p>
+
+        <div class="code">
+          <button class="copy">Copy</button>
+          <pre>{
+  <span class="c-branch">"theme"</span>: <span class="c-green">"compact"</span>,
+  <span class="c-branch">"showBranch"</span>: <span class="c-orange">true</span>,
+  <span class="c-branch">"showCost"</span>: <span class="c-orange">true</span>,
+  <span class="c-branch">"hideUnavailable"</span>: <span class="c-orange">true</span>,
+  <span class="c-branch">"progressWidth"</span>: <span class="c-yellow">12</span>,
+  <span class="c-branch">"useColors"</span>: <span class="c-orange">true</span>,
+  <span class="c-branch">"refreshSeconds"</span>: <span class="c-yellow">30</span>,
+  <span class="c-branch">"colorThresholds"</span>: { <span class="c-branch">"yellow"</span>: <span class="c-yellow">60</span>, <span class="c-branch">"orange"</span>: <span class="c-yellow">80</span>, <span class="c-branch">"red"</span>: <span class="c-yellow">90</span> }
+}</pre>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 8px">
+          <table>
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Default</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>theme</code></td>
+                <td><span class="def">compact</span></td>
+                <td>compact · default · minimal · powerline · nerd-font · plain-text</td>
+              </tr>
+              <tr>
+                <td><code>hideUnavailable</code></td>
+                <td><span class="def">true</span></td>
+                <td>Hide 5h/weekly until they load instead of showing <code>--</code></td>
+              </tr>
+              <tr>
+                <td><code>showBranch</code></td>
+                <td><span class="def">true</span></td>
+                <td>Show the git branch (set false to skip the git call entirely)</td>
+              </tr>
+              <tr>
+                <td><code>showCost</code></td>
+                <td><span class="def">true</span></td>
+                <td>Show session cost in USD when available</td>
+              </tr>
+              <tr>
+                <td><code>showWorkingDirectory</code></td>
+                <td><span class="def">false</span></td>
+                <td>Show the current directory</td>
+              </tr>
+              <tr>
+                <td><code>progressWidth</code></td>
+                <td><span class="def">12</span></td>
+                <td>Progress-bar width in characters (1–60)</td>
+              </tr>
+              <tr>
+                <td><code>partialBlocks</code></td>
+                <td><span class="def">false</span></td>
+                <td>Eighth-block glyphs for smoother bars</td>
+              </tr>
+              <tr>
+                <td><code>useColors</code></td>
+                <td><span class="def">true</span></td>
+                <td>ANSI colors (also honors <code>NO_COLOR</code>)</td>
+              </tr>
+              <tr>
+                <td><code>refreshSeconds</code></td>
+                <td><span class="def">30</span></td>
+                <td>How often the line re-runs so countdowns tick while idle</td>
+              </tr>
+              <tr>
+                <td><code>colorThresholds</code></td>
+                <td><span class="def">60/80/90</span></td>
+                <td>Percent boundaries for yellow, orange, red</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="recipe">
+          <h3>Recipes</h3>
+          <div class="code">
+            <button class="copy">Copy</button>
+            <pre><span class="cmt">// A quiet single line — only the numbers</span>
+{ <span class="c-branch">"theme"</span>: <span class="c-green">"minimal"</span>, <span class="c-branch">"showBranch"</span>: <span class="c-orange">false</span>, <span class="c-branch">"showContext"</span>: <span class="c-orange">false</span> }
+
+<span class="cmt">// A wide, high-contrast dashboard</span>
+{ <span class="c-branch">"theme"</span>: <span class="c-green">"default"</span>, <span class="c-branch">"progressWidth"</span>: <span class="c-yellow">20</span>, <span class="c-branch">"partialBlocks"</span>: <span class="c-orange">true</span> }
+
+<span class="cmt">// Warn earlier: yellow at 50%, red at 80%</span>
+{ <span class="c-branch">"colorThresholds"</span>: { <span class="c-branch">"yellow"</span>: <span class="c-yellow">50</span>, <span class="c-branch">"orange"</span>: <span class="c-yellow">70</span>, <span class="c-branch">"red"</span>: <span class="c-yellow">80</span> } }</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="anchor" id="faq">
+      <div class="wrap">
+        <h2>FAQ</h2>
+        <p class="sub">The questions that come up most.</p>
+
+        <details open>
+          <summary>Why do 5-hour and weekly numbers take a moment to appear on launch?</summary>
+          <p>
+            The plugin doesn't fetch them — Claude Code hands them over in its status-line payload,
+            and it only fills in <code>rate_limits</code> after the <em>first API response</em> of
+            the session. On a fresh launch, before your first request returns, the fields simply
+            aren't there yet. They pop in on the next render once your first message completes.
+            Nothing can make the data arrive sooner; the plugin itself renders instantly. This is
+            why <code>hideUnavailable</code> defaults to <code>true</code> — no <code>--</code>
+            flicker during that window.
+          </p>
+        </details>
+        <details>
+          <summary>Does it scrape <code>/usage</code> or make network calls?</summary>
+          <p>
+            No. It reads the <code>rate_limits</code> object Claude Code already passes to the status
+            line. No network, no scraping, no undocumented APIs.
+          </p>
+        </details>
+        <details>
+          <summary>Does it cost API tokens?</summary>
+          <p>No. Status line commands run locally and don't consume API tokens.</p>
+        </details>
+        <details>
+          <summary>The 5h / Week segments never show up.</summary>
+          <p>
+            <code>rate_limits</code> appears only for Claude.ai Pro and Max subscribers, after the
+            first API response. API-key sign-ins never receive these fields, so with the default
+            <code>hideUnavailable: true</code> the segments stay hidden. Set it to
+            <code>false</code> to show them as <code>--</code>.
+          </p>
+        </details>
+        <details>
+          <summary>Why does cost reset when I run <code>/clear</code>?</summary>
+          <p>
+            That's Claude Code's own behavior for <code>cost.total_cost_usd</code>. flux-code just
+            displays the field.
+          </p>
+        </details>
+        <details>
+          <summary>Can a plugin set my status line automatically?</summary>
+          <p>
+            No — Claude Code only lets a plugin ship <code>agent</code> and
+            <code>subagentStatusLine</code> defaults, never the main <code>statusLine</code>. That's
+            why <code>/flux-code</code> runs the installer to write it into your settings.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <div>⚡ flux-code · MIT License</div>
+        <div>
+          <a href="https://github.com/im-shubhamsharma/flux-code">GitHub</a> ·
+          <a href="https://github.com/im-shubhamsharma/flux-code/blob/main/README.md">README</a> ·
+          <a href="https://github.com/im-shubhamsharma/flux-code/blob/main/CHANGELOG.md"
+            >Changelog</a
+          >
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.querySelectorAll(".copy").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const pre = btn.parentElement.querySelector("pre");
+          const text = pre.innerText;
+          navigator.clipboard.writeText(text).then(() => {
+            const old = btn.textContent;
+            btn.textContent = "Copied ✓";
+            setTimeout(() => (btn.textContent = old), 1400);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
