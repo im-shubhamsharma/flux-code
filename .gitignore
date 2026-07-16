@@ -1,6 +1,9 @@
 node_modules/
-dist/
 coverage/
 *.log
 .DS_Store
 .claude/settings.local.json
+
+# dist/ is intentionally committed: this plugin ships a pre-built copy of the
+# tool so it works with no build step. Rebuild with `npm run build` before
+# committing changes to src/.

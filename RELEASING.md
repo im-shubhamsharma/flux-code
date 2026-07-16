@@ -1,20 +1,15 @@
 # Releasing
 
-This project publishes to npm and tags a GitHub release. Both the npm package
-version and the plugin manifest version must match.
-
-## Before you start
-
-- Replace every `im-shubhamsharma` placeholder with the real GitHub owner in:
-  `package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
-  `README.md`, and `CHANGELOG.md`.
-- Confirm you are logged in to npm: `npm whoami`.
+Flux Code is distributed as a self-contained Claude Code plugin from this
+GitHub repo. There is no npm publish step: the built `dist/` is committed so the
+plugin works with no build. The `package.json` version and the plugin manifest
+version must match, because Claude Code pins plugin updates to `plugin.json`.
 
 ## Steps
 
 1. Make sure the working tree is clean and CI is green on `main`.
 
-2. Run the full local check:
+2. Run the full local check and rebuild the bundled script:
 
    ```bash
    npm ci
@@ -30,24 +25,25 @@ version and the plugin manifest version must match.
    - `.claude-plugin/plugin.json` `version`
    - a new dated section in `CHANGELOG.md`
 
-   `npm version <patch|minor|major>` updates `package.json` and creates a git
-   tag. Update `plugin.json` and `CHANGELOG.md` by hand to match, or amend the
-   version commit before pushing.
-
-4. Publish to npm. `prepublishOnly` runs the build, so `dist/` is always fresh:
+4. Commit the version bump **together with the rebuilt `dist/`** so installed
+   plugins pick up the new code:
 
    ```bash
-   npm publish
+   git add dist package.json .claude-plugin/plugin.json CHANGELOG.md
+   git commit -m "Release v<version>"
    ```
 
-5. Push the tag and create the GitHub release:
+5. Tag and push, then create the GitHub release:
 
    ```bash
+   git tag "v$(node -p "require('./package.json').version")"
    git push --follow-tags
    gh release create "v$(node -p "require('./package.json').version")" \
      --title "v$(node -p "require('./package.json').version")" \
      --notes "See CHANGELOG.md"
    ```
+
+Users update with `/plugin marketplace update flux-code`.
 
 ## Plugin version behavior
 
@@ -57,9 +53,16 @@ leave `version` unset, Claude Code falls back to the git commit SHA and treats
 every commit as a new version. This project sets `version` explicitly, so keep
 it in step with `package.json`.
 
-## What gets published
+## The bundled build
 
-The npm tarball ships only what the `files` field lists: `dist/`, `README.md`,
-`LICENSE`, `CHANGELOG.md`, and `flux-code.example.json`. The built
-`dist/index.js` is a single bundled file with a `#!/usr/bin/env node` shebang
-and no runtime dependencies.
+The committed `dist/index.js` is a single bundled file with a
+`#!/usr/bin/env node` shebang and no runtime dependencies. Always rebuild it
+(`npm run build`) and commit the result whenever you change anything under
+`src/`, or installed plugins will run stale code.
+
+## Optional: publishing to npm
+
+The package is npm-ready (`bin`, `files`, and `publishConfig` are set) if you
+ever want a global `npm install -g flux-code` path in addition to the plugin.
+Log in with `npm whoami`, then `npm publish` — `prepublishOnly` rebuilds `dist/`
+first. This is not required for the plugin to work.

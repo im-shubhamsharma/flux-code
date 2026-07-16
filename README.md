@@ -3,7 +3,6 @@
 A live status line for [Claude Code](https://code.claude.com) that shows your model, git branch, context window usage, 5-hour and weekly rate limits, reset countdowns, and session cost. It reads the official Status Line JSON payload on stdin and prints a formatted line. No polling, no `/usage` scraping, no undocumented APIs.
 
 [![CI](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml/badge.svg)](https://github.com/im-shubhamsharma/flux-code/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/flux-code.svg)](https://www.npmjs.com/package/flux-code)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 
@@ -91,14 +90,43 @@ Three limitations are worth knowing up front. None of them are worked around wit
 
 ## Install
 
-### Option A: npm (recommended)
+### Option A: Claude Code plugin (recommended)
 
-```bash
-npm install -g flux-code
-flux-code install
+This repo is a self-contained Claude Code plugin: it ships a pre-built copy of the tool, so there is nothing to compile and no npm package to install. Inside Claude Code, run:
+
+```text
+/plugin marketplace add im-shubhamsharma/flux-code
+/plugin install flux-code@flux-code
+/flux-code
 ```
 
-`install` writes a `statusLine` block into `~/.claude/settings.json`, backs up the previous file to `settings.json.bak`, and seeds a default `~/.claude/flux-code.json` you can edit. Restart Claude Code or send one message to see it.
+- `/plugin marketplace add …` registers this GitHub repo as a plugin marketplace.
+- `/plugin install flux-code@flux-code` installs the plugin (`flux-code` is both the plugin name and the marketplace name).
+- `/flux-code` runs the setup: it writes a `statusLine` block into `~/.claude/settings.json` (pointing at the plugin's bundled script by absolute path), backs up the previous file to `settings.json.bak`, and seeds a default `~/.claude/flux-code.json` you can edit.
+
+Because a plugin cannot set the main status line itself (see limitation 3 above), the `/flux-code` command runs the installer for you. Restart Claude Code or send one message to see the status line.
+
+To update later, run `/plugin marketplace update flux-code` and re-run `/flux-code`.
+
+### Option B: From source (for development or manual setup)
+
+Clone, build, and either link a global `flux-code` binary or run the installer directly:
+
+```bash
+git clone https://github.com/im-shubhamsharma/flux-code.git
+cd flux-code
+npm install
+npm run build
+
+# either link a global binary…
+npm link
+flux-code install
+
+# …or run the built script directly without linking:
+node dist/index.js install
+```
+
+`install` writes a `statusLine` block into `~/.claude/settings.json`, backs up the previous file to `settings.json.bak`, and seeds a default `~/.claude/flux-code.json`.
 
 To scope it to a single project instead of your whole account:
 
@@ -106,36 +134,27 @@ To scope it to a single project instead of your whole account:
 flux-code install --project   # writes ./.claude/settings.json
 ```
 
-### Option B: Claude Code plugin
+### Option C: Manual settings.json
 
-```text
-/plugin marketplace add im-shubhamsharma/flux-code
-/plugin install flux-code@flux-code
-```
-
-The plugin adds a `/flux-code` command that walks you through setup. Because a plugin cannot set the main status line itself (see limitation 3 above), the command still runs the installer for you.
-
-### Option C: Manual
-
-If you would rather wire it yourself, add this to `~/.claude/settings.json`:
+If you would rather wire it yourself, point `command` at the built script (use the absolute path to your checkout's `dist/index.js`) and add this to `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "flux-code",
+    "command": "/absolute/path/to/flux-code/dist/index.js",
     "refreshInterval": 30
   }
 }
 ```
 
-`refreshInterval` re-runs the command every N seconds so the reset countdowns tick while the session is idle. The minimum is 1.
+`refreshInterval` re-runs the command every N seconds so the reset countdowns tick while the session is idle. The minimum is 1. If you linked a global binary, you can use the plain name `flux-code` as the command instead.
 
 ### Per-platform notes
 
-- **macOS and Linux**: nothing extra. The global bin is on your PATH after `npm install -g`.
-- **Windows**: Claude Code runs status line commands through Git Bash when it is installed, otherwise PowerShell. If you point `command` at a script path, write it with forward slashes (`C:/Users/you/...`). The global `flux-code` bin works directly.
-- **nvm / fnm users**: the global bin path can change per Node version. If the status line goes blank after switching Node, run `flux-code install` again to rewrite the absolute path, or set `command` to the plain name `flux-code` so PATH resolves it.
+- **macOS and Linux**: the bundled `dist/index.js` is executable and starts with a `#!/usr/bin/env node` shebang, so the `install` command can point at it directly.
+- **Windows**: Claude Code runs status line commands through Git Bash when it is installed, otherwise PowerShell. `install` writes the command as `node "C:/…/dist/index.js"` with forward slashes automatically.
+- **nvm / fnm users**: if you installed a global binary via `npm link`, its path can change per Node version. If the status line goes blank after switching Node, re-run the installer (or `/flux-code`) to rewrite the absolute path. The plugin install path is unaffected because it points at the plugin's own bundled script.
 
 ## Configuration
 
