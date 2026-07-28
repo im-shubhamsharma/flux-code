@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-28
+
+### Added
+
+- **Six new opt-in segments** (all default off), rendered across every theme:
+  - `showRepo` — repository as `owner/name` (`workspace.repo`).
+  - `showTokens` — context token count, e.g. `45.2k tok`
+    (`context_window.current_usage`).
+  - `showGitDirty` — count of uncommitted changes, e.g. `±3` (hidden when
+    clean). Runs `git status`, cached per session like the branch lookup.
+  - `showVersion` — the Claude Code version (`v2.1.90`).
+  - `showOutputStyle` — the active output style (`output_style.name`).
+  - `showEffort` — the thinking-effort level (`effort.level`).
+
 ## [1.2.0] - 2026-07-17
 
 ### Added
@@ -69,7 +83,8 @@ All notable changes to this project are documented here. The format follows
 - Vitest unit tests, ESLint, Prettier, and a GitHub Actions CI matrix
   (Node 18, 20, 22).
 
-[Unreleased]: https://github.com/im-shubhamsharma/flux-code/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/im-shubhamsharma/flux-code/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/im-shubhamsharma/flux-code/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/im-shubhamsharma/flux-code/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/im-shubhamsharma/flux-code/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/im-shubhamsharma/flux-code/releases/tag/v1.0.0

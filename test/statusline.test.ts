@@ -12,8 +12,24 @@ function config(overrides: Partial<Config> = {}): Config {
 
 const richInput: StatusInput = {
   model: { id: 'claude-opus-4-8', display_name: 'Opus 4' },
-  workspace: { current_dir: '/home/dev/code/flux', project_dir: '/home/dev/code/flux' },
-  context_window: { used_percentage: 82, context_window_size: 200000 },
+  version: '2.1.90',
+  output_style: { name: 'Explanatory' },
+  effort: { level: 'high' },
+  workspace: {
+    current_dir: '/home/dev/code/flux',
+    project_dir: '/home/dev/code/flux',
+    repo: { host: 'github.com', owner: 'acme', name: 'flux' },
+  },
+  context_window: {
+    used_percentage: 82,
+    context_window_size: 200000,
+    current_usage: {
+      input_tokens: 40000,
+      cache_read_input_tokens: 5000,
+      cache_creation_input_tokens: 200,
+      output_tokens: 900,
+    },
+  },
   cost: {
     total_cost_usd: 0.1234,
     total_lines_added: 124,
@@ -40,6 +56,12 @@ describe('buildModel', () => {
     expect(m.cwdName).toBe('flux');
     expect(m.contextWindowSize).toBe(200000);
     expect(m.branch).toBeNull(); // showBranch: false
+    expect(m.repo).toBe('acme/flux');
+    expect(m.contextTokens).toBe(45200); // 40000 + 5000 + 200 (input side only)
+    expect(m.outputStyle).toBe('Explanatory');
+    expect(m.effort).toBe('high');
+    expect(m.version).toBe('2.1.90');
+    expect(m.gitDirty).toBeNull(); // showGitDirty: false → no git call
   });
 
   it('maps every missing field to null (never throws)', () => {

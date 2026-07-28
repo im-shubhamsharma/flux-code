@@ -9,8 +9,34 @@
 
 import { createAnsi } from './colors';
 import { render } from './renderer';
-import type { Config, StatusInput, StatusModel } from './types';
-import { basenameOf, clampPercent, getGitBranch, homeShorten, numberOrNull } from './utils';
+import type { Config, ContextUsage, RepoInfo, StatusInput, StatusModel } from './types';
+import {
+  basenameOf,
+  clampPercent,
+  getGitBranch,
+  getGitDirtyCount,
+  homeShorten,
+  numberOrNull,
+} from './utils';
+
+/** `owner/name` for a repo, or just the name, or `null`. */
+function repoLabel(repo: RepoInfo | undefined): string | null {
+  if (!repo) return null;
+  if (repo.owner && repo.name) return `${repo.owner}/${repo.name}`;
+  return repo.name ?? null;
+}
+
+/** Sum the input-side token components that make up the current context. */
+function contextTokenCount(usage: ContextUsage | null | undefined): number | null {
+  if (!usage) return null;
+  const parts = [
+    usage.input_tokens,
+    usage.cache_creation_input_tokens,
+    usage.cache_read_input_tokens,
+  ].filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+  if (parts.length === 0) return null;
+  return parts.reduce((a, b) => a + b, 0);
+}
 
 /** Normalize a raw payload into a render-ready model. */
 export function buildModel(input: StatusInput, config: Config, _nowMs: number): StatusModel {
@@ -21,6 +47,7 @@ export function buildModel(input: StatusInput, config: Config, _nowMs: number): 
   const branch = config.showBranch
     ? getGitBranch(cwdPath, input.session_id, input.worktree?.branch)
     : null;
+  const gitDirty = config.showGitDirty ? getGitDirtyCount(cwdPath, input.session_id) : null;
 
   return {
     modelName: input.model?.display_name ?? null,
@@ -39,6 +66,11 @@ export function buildModel(input: StatusInput, config: Config, _nowMs: number): 
     version: input.version ?? null,
     sessionName: input.session_name ?? null,
     contextWindowSize: numberOrNull(contextWindow?.context_window_size),
+    repo: repoLabel(input.workspace?.repo),
+    contextTokens: contextTokenCount(contextWindow?.current_usage),
+    outputStyle: input.output_style?.name ?? null,
+    effort: input.effort?.level ?? null,
+    gitDirty,
   };
 }
 

@@ -69,6 +69,12 @@ describe('mergeConfig', () => {
     expect(cfg.showLines).toBe(false);
     expect(cfg.showSessionTime).toBe(false);
     expect(cfg.showBurnRate).toBe(false);
+    expect(cfg.showRepo).toBe(false);
+    expect(cfg.showTokens).toBe(false);
+    expect(cfg.showVersion).toBe(false);
+    expect(cfg.showOutputStyle).toBe(false);
+    expect(cfg.showEffort).toBe(false);
+    expect(cfg.showGitDirty).toBe(false);
     expect(cfg.notify).toBe(false);
     expect(cfg.notifyBell).toBe(true);
     expect(cfg.notifyThresholds).toEqual([90]);

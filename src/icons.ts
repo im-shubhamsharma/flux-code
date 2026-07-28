@@ -26,6 +26,12 @@ export interface IconSet {
   lines: string;
   time: string;
   burn: string;
+  repo: string;
+  tokens: string;
+  version: string;
+  style: string;
+  effort: string;
+  dirty: string;
   /** Escalating warning badge glyph. */
   warn: string;
 }
@@ -41,6 +47,12 @@ export const EMOJI_ICONS: IconSet = {
   lines: '📝',
   time: '⏱',
   burn: '🔥',
+  repo: '📦',
+  tokens: '🔢',
+  version: '🏷',
+  style: '🎨',
+  effort: '🧩',
+  dirty: '●',
   warn: '⚠',
 };
 
@@ -56,6 +68,12 @@ export const NERD_ICONS: IconSet = {
   lines: cp(0xf040), // nf-fa-pencil
   time: cp(0xf017), // nf-fa-clock_o
   burn: cp(0xf06d), // nf-fa-fire
+  repo: cp(0xf1d3), // nf-fa-git_square
+  tokens: cp(0xf292), // nf-fa-hashtag
+  version: cp(0xf02b), // nf-fa-tag
+  style: cp(0xf1fc), // nf-fa-paint_brush
+  effort: cp(0xf085), // nf-fa-cogs
+  dirty: cp(0xf044), // nf-fa-pencil_square_o
   warn: cp(0xf071), // nf-fa-warning
 };
 

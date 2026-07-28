@@ -97,6 +97,17 @@ export function formatBurnRate(cost: number | null, durationMs: number | null): 
   return `$${perHour.toFixed(2)}/h`;
 }
 
+/**
+ * Format a token count compactly: 850 -> "850", 45200 -> "45.2k",
+ * 1_500_000 -> "1.5M". Returns `null` for missing or negative input.
+ */
+export function formatTokens(value: number | null): string | null {
+  if (value === null || value < 0) return null;
+  if (value < 1000) return String(Math.round(value));
+  if (value < 1_000_000) return `${(value / 1000).toFixed(1)}k`;
+  return `${(value / 1_000_000).toFixed(1)}M`;
+}
+
 const GIT_CACHE_TTL_MS = 3000;
 
 function sanitizeKey(key: string): string {
@@ -149,4 +160,47 @@ export function getGitBranch(
     // Caching is best-effort.
   }
   return branch;
+}
+
+/**
+ * Count uncommitted changes via `git status --porcelain` (modified, staged, and
+ * untracked entries). Cached per session with the same short TTL as the branch
+ * lookup. Returns `0` for a clean repo and `null` outside a repo or on error.
+ */
+export function getGitDirtyCount(
+  cwd: string | null | undefined,
+  sessionId: string | null | undefined,
+): number | null {
+  const dir = cwd || process.cwd();
+  const cacheFile = join(tmpdir(), `flux-code-dirty-${sanitizeKey(sessionId || 'default')}`);
+
+  try {
+    const stats = statSync(cacheFile);
+    if (Date.now() - stats.mtimeMs < GIT_CACHE_TTL_MS) {
+      const cached = readFileSync(cacheFile, 'utf8');
+      return cached === '' ? null : Number(cached);
+    }
+  } catch {
+    // No usable cache; fall through to a fresh lookup.
+  }
+
+  let count: number | null = null;
+  try {
+    const out = execFileSync('git', ['-C', dir, 'status', '--porcelain'], {
+      encoding: 'utf8',
+      timeout: 800,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const trimmed = out.replace(/\n+$/, '');
+    count = trimmed === '' ? 0 : trimmed.split('\n').length;
+  } catch {
+    count = null;
+  }
+
+  try {
+    writeFileSync(cacheFile, count === null ? '' : String(count));
+  } catch {
+    // Caching is best-effort.
+  }
+  return count;
 }

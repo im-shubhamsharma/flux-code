@@ -666,8 +666,8 @@
             <div class="ic">📊</div>
             <h3>Extra segments</h3>
             <p>
-              Optional lines-changed (<code>+124 −18</code>), session time, and spend-rate
-              (<code>$0.34/h</code>) segments — all from data Claude Code already provides.
+              Optional lines-changed, session time, spend-rate, repo, context tokens, git-dirty
+              count, and version segments — all from data Claude Code already provides.
             </p>
           </div>
         </div>
@@ -850,6 +850,26 @@
                 <td><code>showBurnRate</code></td>
                 <td><span class="def">false</span></td>
                 <td>Spend rate in USD per hour (<code>$0.34/h</code>)</td>
+              </tr>
+              <tr>
+                <td><code>showRepo</code></td>
+                <td><span class="def">false</span></td>
+                <td>Repository as <code>owner/name</code></td>
+              </tr>
+              <tr>
+                <td><code>showTokens</code></td>
+                <td><span class="def">false</span></td>
+                <td>Context token count (<code>45.2k tok</code>)</td>
+              </tr>
+              <tr>
+                <td><code>showGitDirty</code></td>
+                <td><span class="def">false</span></td>
+                <td>Count of uncommitted git changes (<code>±3</code>)</td>
+              </tr>
+              <tr>
+                <td><code>showVersion</code> / <code>showOutputStyle</code> / <code>showEffort</code></td>
+                <td><span class="def">false</span></td>
+                <td>Claude Code version, output style, and effort level</td>
               </tr>
               <tr>
                 <td><code>notify</code></td>

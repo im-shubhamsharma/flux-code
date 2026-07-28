@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBurnRate, formatCost, formatLines } from '../src/utils';
+import { formatBurnRate, formatCost, formatLines, formatTokens } from '../src/utils';
 
 describe('formatCost', () => {
   it('formats a USD amount', () => {
@@ -36,5 +36,18 @@ describe('formatBurnRate', () => {
 
   it('returns null for durations too short to extrapolate', () => {
     expect(formatBurnRate(1, 10_000)).toBeNull();
+  });
+});
+
+describe('formatTokens', () => {
+  it('formats compactly with k and M suffixes', () => {
+    expect(formatTokens(850)).toBe('850');
+    expect(formatTokens(45200)).toBe('45.2k');
+    expect(formatTokens(1_500_000)).toBe('1.5M');
+  });
+
+  it('returns null for missing or negative input', () => {
+    expect(formatTokens(null)).toBeNull();
+    expect(formatTokens(-1)).toBeNull();
   });
 });

@@ -24,6 +24,12 @@ var DEFAULT_CONFIG = {
   showLines: false,
   showSessionTime: false,
   showBurnRate: false,
+  showRepo: false,
+  showTokens: false,
+  showVersion: false,
+  showOutputStyle: false,
+  showEffort: false,
+  showGitDirty: false,
   hideUnavailable: true,
   notify: false,
   notifyBell: true,
@@ -60,6 +66,12 @@ var BOOLEAN_KEYS = [
   "showLines",
   "showSessionTime",
   "showBurnRate",
+  "showRepo",
+  "showTokens",
+  "showVersion",
+  "showOutputStyle",
+  "showEffort",
+  "showGitDirty",
   "hideUnavailable",
   "notify",
   "notifyBell",
@@ -223,6 +235,12 @@ var EMOJI_ICONS = {
   lines: "\u{1F4DD}",
   time: "\u23F1",
   burn: "\u{1F525}",
+  repo: "\u{1F4E6}",
+  tokens: "\u{1F522}",
+  version: "\u{1F3F7}",
+  style: "\u{1F3A8}",
+  effort: "\u{1F9E9}",
+  dirty: "\u25CF",
   warn: "\u26A0"
 };
 var NERD_ICONS = {
@@ -246,6 +264,18 @@ var NERD_ICONS = {
   // nf-fa-clock_o
   burn: cp(61549),
   // nf-fa-fire
+  repo: cp(61907),
+  // nf-fa-git_square
+  tokens: cp(62098),
+  // nf-fa-hashtag
+  version: cp(61483),
+  // nf-fa-tag
+  style: cp(61948),
+  // nf-fa-paint_brush
+  effort: cp(61573),
+  // nf-fa-cogs
+  dirty: cp(61508),
+  // nf-fa-pencil_square_o
   warn: cp(61553)
   // nf-fa-warning
 };
@@ -332,6 +362,12 @@ function formatBurnRate(cost, durationMs) {
   const perHour = cost / (durationMs / 36e5);
   return `$${perHour.toFixed(2)}/h`;
 }
+function formatTokens(value) {
+  if (value === null || value < 0) return null;
+  if (value < 1e3) return String(Math.round(value));
+  if (value < 1e6) return `${(value / 1e3).toFixed(1)}k`;
+  return `${(value / 1e6).toFixed(1)}M`;
+}
 var GIT_CACHE_TTL_MS = 3e3;
 function sanitizeKey(key) {
   return key.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 128);
@@ -365,6 +401,35 @@ function getGitBranch(cwd, sessionId, worktreeBranch) {
   }
   return branch;
 }
+function getGitDirtyCount(cwd, sessionId) {
+  const dir = cwd || process.cwd();
+  const cacheFile = join2(tmpdir(), `flux-code-dirty-${sanitizeKey(sessionId || "default")}`);
+  try {
+    const stats = statSync(cacheFile);
+    if (Date.now() - stats.mtimeMs < GIT_CACHE_TTL_MS) {
+      const cached = readFileSync2(cacheFile, "utf8");
+      return cached === "" ? null : Number(cached);
+    }
+  } catch {
+  }
+  let count = null;
+  try {
+    const out = execFileSync("git", ["-C", dir, "status", "--porcelain"], {
+      encoding: "utf8",
+      timeout: 800,
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    const trimmed = out.replace(/\n+$/, "");
+    count = trimmed === "" ? 0 : trimmed.split("\n").length;
+  } catch {
+    count = null;
+  }
+  try {
+    writeFileSync(cacheFile, count === null ? "" : String(count));
+  } catch {
+  }
+  return count;
+}
 
 // src/renderer.ts
 function pctLabel(value, config) {
@@ -382,6 +447,29 @@ function linesFragment(model, ansi) {
 function sessionTimeText(model) {
   if (model.durationMs === null) return null;
   return formatDuration(model.durationMs);
+}
+function extraSegments(model, config, ansi) {
+  const out = [];
+  if (config.showRepo && model.repo) {
+    out.push({ icon: "repo", text: ansi.magenta(model.repo) });
+  }
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    out.push({ icon: "dirty", text: ansi.yellow(`\xB1${model.gitDirty}`) });
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) out.push({ icon: "tokens", text: ansi.gray(`${tokens} tok`) });
+  }
+  if (config.showVersion && model.version) {
+    out.push({ icon: "version", text: ansi.gray(`v${model.version}`) });
+  }
+  if (config.showOutputStyle && model.outputStyle) {
+    out.push({ icon: "style", text: ansi.gray(model.outputStyle) });
+  }
+  if (config.showEffort && model.effort) {
+    out.push({ icon: "effort", text: ansi.gray(model.effort) });
+  }
+  return out;
 }
 function barOptions(config) {
   return { partial: config.partialBlocks };
@@ -459,6 +547,9 @@ function renderDefault(model, config, ctx) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
   }
+  for (const e of extraSegments(model, config, ansi)) {
+    lines.push(`${iconPrefix(I[e.icon], config)}${e.text}`);
+  }
   return lines.length > 0 ? lines.join("\n") : fallback(model, config, ansi);
 }
 function renderCompact(model, config, ctx) {
@@ -496,6 +587,7 @@ function renderCompact(model, config, ctx) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(ansi.yellow(b));
   }
+  for (const e of extraSegments(model, config, ansi)) segments.push(e.text);
   return segments.length > 0 ? segments.join(config.separator) : fallback(model, config, ansi);
 }
 function renderMinimal(model, config, ctx) {
@@ -523,6 +615,7 @@ function renderMinimal(model, config, ctx) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(ansi.yellow(b));
   }
+  for (const e of extraSegments(model, config, ansi)) segments.push(e.text);
   return segments.length > 0 ? segments.join(" \u2502 ") : fallback(model, config, ansi);
 }
 function renderPowerline(model, config, ctx) {
@@ -558,6 +651,25 @@ function renderPowerline(model, config, ctx) {
   if (config.showBurnRate) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push({ text: ` ${b} `, fg: white, bg: 22 });
+  }
+  if (config.showRepo && model.repo) {
+    segments.push({ text: ` ${model.repo} `, fg: white, bg: 54 });
+  }
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    segments.push({ text: ` \xB1${model.gitDirty} `, fg: 0, bg: 130 });
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) segments.push({ text: ` ${tokens} tok `, fg: white, bg: 240 });
+  }
+  if (config.showVersion && model.version) {
+    segments.push({ text: ` v${model.version} `, fg: white, bg: 238 });
+  }
+  if (config.showOutputStyle && model.outputStyle) {
+    segments.push({ text: ` ${model.outputStyle} `, fg: white, bg: 238 });
+  }
+  if (config.showEffort && model.effort) {
+    segments.push({ text: ` ${model.effort} `, fg: white, bg: 238 });
   }
   if (segments.length === 0) return fallback(model, config, ansi);
   if (!ansi.enabled) return segments.map((s) => s.text).join("");
@@ -617,6 +729,9 @@ function renderNerdFont(model, config, ctx) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(`${useIcons ? `${I.burn} ` : ""}${ansi.yellow(b)}`);
   }
+  for (const e of extraSegments(model, config, ansi)) {
+    segments.push(`${useIcons ? `${I[e.icon]} ` : ""}${e.text}`);
+  }
   return segments.length > 0 ? segments.join("  ") : fallback(model, config, ansi);
 }
 function renderPlainText(model, config) {
@@ -645,6 +760,17 @@ function renderPlainText(model, config) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(b);
   }
+  if (config.showRepo && model.repo) segments.push(model.repo);
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    segments.push(`*${model.gitDirty}`);
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) segments.push(`${tokens} tok`);
+  }
+  if (config.showVersion && model.version) segments.push(`v${model.version}`);
+  if (config.showOutputStyle && model.outputStyle) segments.push(model.outputStyle);
+  if (config.showEffort && model.effort) segments.push(model.effort);
   return segments.length > 0 ? segments.join(" | ") : model.modelName ?? config.missingText;
 }
 function render(model, config, ctx) {
@@ -668,11 +794,27 @@ function render(model, config, ctx) {
 }
 
 // src/statusline.ts
+function repoLabel(repo) {
+  if (!repo) return null;
+  if (repo.owner && repo.name) return `${repo.owner}/${repo.name}`;
+  return repo.name ?? null;
+}
+function contextTokenCount(usage) {
+  if (!usage) return null;
+  const parts = [
+    usage.input_tokens,
+    usage.cache_creation_input_tokens,
+    usage.cache_read_input_tokens
+  ].filter((n) => typeof n === "number" && Number.isFinite(n));
+  if (parts.length === 0) return null;
+  return parts.reduce((a, b) => a + b, 0);
+}
 function buildModel(input, config, _nowMs) {
   const contextWindow = input.context_window;
   const rateLimits = input.rate_limits;
   const cwdPath = input.workspace?.current_dir ?? input.cwd ?? null;
   const branch = config.showBranch ? getGitBranch(cwdPath, input.session_id, input.worktree?.branch) : null;
+  const gitDirty = config.showGitDirty ? getGitDirtyCount(cwdPath, input.session_id) : null;
   return {
     modelName: input.model?.display_name ?? null,
     branch,
@@ -689,7 +831,12 @@ function buildModel(input, config, _nowMs) {
     durationMs: numberOrNull(input.cost?.total_duration_ms),
     version: input.version ?? null,
     sessionName: input.session_name ?? null,
-    contextWindowSize: numberOrNull(contextWindow?.context_window_size)
+    contextWindowSize: numberOrNull(contextWindow?.context_window_size),
+    repo: repoLabel(input.workspace?.repo),
+    contextTokens: contextTokenCount(contextWindow?.current_usage),
+    outputStyle: input.output_style?.name ?? null,
+    effort: input.effort?.level ?? null,
+    gitDirty
   };
 }
 function colorsEnabled(config) {

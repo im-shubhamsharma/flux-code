@@ -172,6 +172,18 @@ export interface Config {
   showSessionTime: boolean;
   /** Show spend rate in USD per hour (`$0.34/h`). Off by default. */
   showBurnRate: boolean;
+  /** Show the repository as `owner/name` (`workspace.repo`). Off by default. */
+  showRepo: boolean;
+  /** Show the context token count (`45.2k`). Off by default. */
+  showTokens: boolean;
+  /** Show the Claude Code version (`v2.1.90`). Off by default. */
+  showVersion: boolean;
+  /** Show the active output style (`output_style.name`). Off by default. */
+  showOutputStyle: boolean;
+  /** Show the thinking-effort level (`effort.level`). Off by default. */
+  showEffort: boolean;
+  /** Show the count of uncommitted git changes. Off by default; adds a git call. */
+  showGitDirty: boolean;
   /**
    * Hide the 5-hour and weekly segments until their data is available instead
    * of showing a `--` placeholder. On a fresh session `rate_limits` only
@@ -234,4 +246,14 @@ export interface StatusModel {
   version: string | null;
   sessionName: string | null;
   contextWindowSize: number | null;
+  /** `workspace.repo` rendered as `owner/name`, when available. */
+  repo: string | null;
+  /** Tokens currently held in the context window (`context_window.current_usage`). */
+  contextTokens: number | null;
+  /** `output_style.name` — the active output style. */
+  outputStyle: string | null;
+  /** `effort.level` — the active thinking-effort level. */
+  effort: string | null;
+  /** Count of uncommitted changes, derived from `git status`. `null` when unknown. */
+  gitDirty: number | null;
 }

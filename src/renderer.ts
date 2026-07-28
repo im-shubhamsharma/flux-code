@@ -10,10 +10,16 @@
 import type { Ansi } from './colors';
 import { bg256ForPercent, colorForPercent, createAnsi } from './colors';
 import { formatDuration, formatResetsIn } from './countdown';
-import { EMOJI_ICONS, NERD_ICONS, POWERLINE_BRANCH, POWERLINE_SEPARATOR } from './icons';
+import {
+  EMOJI_ICONS,
+  NERD_ICONS,
+  POWERLINE_BRANCH,
+  POWERLINE_SEPARATOR,
+  type IconSet,
+} from './icons';
 import { progressBar, type BarOptions } from './progress';
 import type { Config, StatusModel } from './types';
-import { formatBurnRate, formatCost, formatLines } from './utils';
+import { formatBurnRate, formatCost, formatLines, formatTokens } from './utils';
 
 export interface RenderContext {
   /** Milliseconds since epoch, used for reset countdowns. */
@@ -47,6 +53,41 @@ function linesFragment(model: StatusModel, ansi: Ansi): string | null {
 function sessionTimeText(model: StatusModel): string | null {
   if (model.durationMs === null) return null;
   return formatDuration(model.durationMs);
+}
+
+/** A supplementary trailing segment: an icon key plus its pre-colored text. */
+interface Extra {
+  icon: keyof IconSet;
+  text: string;
+}
+
+/**
+ * The opt-in "extra" segments (repo, git dirty, tokens, version, output style,
+ * effort), each already colored. Rendered at the end of every theme; `null`
+ * values are skipped so nothing shows unless both enabled and available.
+ */
+function extraSegments(model: StatusModel, config: Config, ansi: Ansi): Extra[] {
+  const out: Extra[] = [];
+  if (config.showRepo && model.repo) {
+    out.push({ icon: 'repo', text: ansi.magenta(model.repo) });
+  }
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    out.push({ icon: 'dirty', text: ansi.yellow(`±${model.gitDirty}`) });
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) out.push({ icon: 'tokens', text: ansi.gray(`${tokens} tok`) });
+  }
+  if (config.showVersion && model.version) {
+    out.push({ icon: 'version', text: ansi.gray(`v${model.version}`) });
+  }
+  if (config.showOutputStyle && model.outputStyle) {
+    out.push({ icon: 'style', text: ansi.gray(model.outputStyle) });
+  }
+  if (config.showEffort && model.effort) {
+    out.push({ icon: 'effort', text: ansi.gray(model.effort) });
+  }
+  return out;
 }
 
 function barOptions(config: Config): BarOptions {
@@ -135,6 +176,9 @@ function renderDefault(model: StatusModel, config: Config, ctx: RenderContext): 
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
   }
+  for (const e of extraSegments(model, config, ansi)) {
+    lines.push(`${iconPrefix(I[e.icon], config)}${e.text}`);
+  }
 
   return lines.length > 0 ? lines.join('\n') : fallback(model, config, ansi);
 }
@@ -176,6 +220,7 @@ function renderCompact(model: StatusModel, config: Config, ctx: RenderContext): 
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(ansi.yellow(b));
   }
+  for (const e of extraSegments(model, config, ansi)) segments.push(e.text);
 
   return segments.length > 0 ? segments.join(config.separator) : fallback(model, config, ansi);
 }
@@ -207,6 +252,7 @@ function renderMinimal(model: StatusModel, config: Config, ctx: RenderContext): 
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(ansi.yellow(b));
   }
+  for (const e of extraSegments(model, config, ansi)) segments.push(e.text);
 
   return segments.length > 0 ? segments.join(' │ ') : fallback(model, config, ansi);
 }
@@ -252,6 +298,25 @@ function renderPowerline(model: StatusModel, config: Config, ctx: RenderContext)
   if (config.showBurnRate) {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push({ text: ` ${b} `, fg: white, bg: 22 });
+  }
+  if (config.showRepo && model.repo) {
+    segments.push({ text: ` ${model.repo} `, fg: white, bg: 54 });
+  }
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    segments.push({ text: ` ±${model.gitDirty} `, fg: 0, bg: 130 });
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) segments.push({ text: ` ${tokens} tok `, fg: white, bg: 240 });
+  }
+  if (config.showVersion && model.version) {
+    segments.push({ text: ` v${model.version} `, fg: white, bg: 238 });
+  }
+  if (config.showOutputStyle && model.outputStyle) {
+    segments.push({ text: ` ${model.outputStyle} `, fg: white, bg: 238 });
+  }
+  if (config.showEffort && model.effort) {
+    segments.push({ text: ` ${model.effort} `, fg: white, bg: 238 });
   }
 
   if (segments.length === 0) return fallback(model, config, ansi);
@@ -316,6 +381,9 @@ function renderNerdFont(model: StatusModel, config: Config, ctx: RenderContext):
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(`${useIcons ? `${I.burn} ` : ''}${ansi.yellow(b)}`);
   }
+  for (const e of extraSegments(model, config, ansi)) {
+    segments.push(`${useIcons ? `${I[e.icon]} ` : ''}${e.text}`);
+  }
 
   return segments.length > 0 ? segments.join('  ') : fallback(model, config, ansi);
 }
@@ -348,6 +416,17 @@ function renderPlainText(model: StatusModel, config: Config): string {
     const b = formatBurnRate(model.cost, model.durationMs);
     if (b) segments.push(b);
   }
+  if (config.showRepo && model.repo) segments.push(model.repo);
+  if (config.showGitDirty && model.gitDirty !== null && model.gitDirty > 0) {
+    segments.push(`*${model.gitDirty}`);
+  }
+  if (config.showTokens) {
+    const tokens = formatTokens(model.contextTokens);
+    if (tokens) segments.push(`${tokens} tok`);
+  }
+  if (config.showVersion && model.version) segments.push(`v${model.version}`);
+  if (config.showOutputStyle && model.outputStyle) segments.push(model.outputStyle);
+  if (config.showEffort && model.effort) segments.push(model.effort);
 
   return segments.length > 0 ? segments.join(' | ') : (model.modelName ?? config.missingText);
 }

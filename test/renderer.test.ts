@@ -24,6 +24,11 @@ function model(overrides: Partial<StatusModel> = {}): StatusModel {
     version: '2.1.90',
     sessionName: null,
     contextWindowSize: 200000,
+    repo: 'acme/flux',
+    contextTokens: 45200,
+    outputStyle: null,
+    effort: null,
+    gitDirty: null,
     ...overrides,
   };
 }
@@ -115,6 +120,51 @@ describe('render: compact', () => {
     const out = render(model(), config({ theme: 'compact', useColors: false }), plainCtx());
     expect(out).not.toContain('−18');
     expect(out).not.toContain('/h');
+    expect(out).not.toContain('acme/flux');
+    expect(out).not.toContain('tok');
+  });
+
+  it('adds opt-in repo, tokens, and version segments', () => {
+    const out = render(
+      model(),
+      config({
+        theme: 'compact',
+        useColors: false,
+        showRepo: true,
+        showTokens: true,
+        showVersion: true,
+      }),
+      plainCtx(),
+    );
+    expect(out).toContain('acme/flux'); // repo
+    expect(out).toContain('45.2k tok'); // context tokens
+    expect(out).toContain('v2.1.90'); // Claude Code version
+  });
+
+  it('adds git-dirty, output-style, and effort segments', () => {
+    const out = render(
+      model({ gitDirty: 3, outputStyle: 'Explanatory', effort: 'high' }),
+      config({
+        theme: 'compact',
+        useColors: false,
+        showGitDirty: true,
+        showOutputStyle: true,
+        showEffort: true,
+      }),
+      plainCtx(),
+    );
+    expect(out).toContain('±3');
+    expect(out).toContain('Explanatory');
+    expect(out).toContain('high');
+  });
+
+  it('hides the git-dirty segment on a clean tree', () => {
+    const out = render(
+      model({ gitDirty: 0 }),
+      config({ theme: 'compact', useColors: false, showGitDirty: true }),
+      plainCtx(),
+    );
+    expect(out).not.toContain('±');
   });
 });
 
@@ -244,6 +294,11 @@ describe('render: warnings and fallback', () => {
       version: null,
       sessionName: null,
       contextWindowSize: null,
+      repo: null,
+      contextTokens: null,
+      outputStyle: null,
+      effort: null,
+      gitDirty: null,
     };
     const themes: Theme[] = [
       'default',

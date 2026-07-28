@@ -209,6 +209,12 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 | `showLines`            | boolean | `false`        | Show lines added/removed this session (`+124 −18`), from `cost.total_lines_added/removed`.                                                                                                                                                   |
 | `showSessionTime`      | boolean | `false`        | Show elapsed session time (`⏱ 2h 13m`), from `cost.total_duration_ms`.                                                                                                                                                                       |
 | `showBurnRate`         | boolean | `false`        | Show spend rate in USD per hour (`$0.34/h`), from cost ÷ duration.                                                                                                                                                                           |
+| `showRepo`             | boolean | `false`        | Show the repository as `owner/name` (`workspace.repo`).                                                                                                                                                                                      |
+| `showTokens`           | boolean | `false`        | Show the context token count (`45.2k tok`), from `context_window.current_usage`.                                                                                                                                                             |
+| `showVersion`          | boolean | `false`        | Show the Claude Code version (`v2.1.90`).                                                                                                                                                                                                    |
+| `showOutputStyle`      | boolean | `false`        | Show the active output style (`output_style.name`).                                                                                                                                                                                          |
+| `showEffort`           | boolean | `false`        | Show the thinking-effort level (`effort.level`).                                                                                                                                                                                             |
+| `showGitDirty`         | boolean | `false`        | Show the count of uncommitted git changes (`±3`). Adds a `git status` call, cached per session.                                                                                                                                              |
 | `hideUnavailable`      | boolean | `true`         | Hide the 5-hour and weekly segments until their data loads, instead of showing `--`. On a fresh session `rate_limits` only appears after the first API response; this avoids a "loading" flicker. Set `false` to always show them with `--`. |
 | `notify`               | boolean | `false`        | Fire a desktop notification when 5-hour or weekly usage first crosses a `notifyThresholds` level. See [Usage notifications](#usage-notifications).                                                                                           |
 | `notifyBell`           | boolean | `true`         | Also emit a terminal bell alongside a usage notification.                                                                                                                                                                                    |
@@ -226,17 +232,31 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 
 ## Extra segments
 
-Three segments are available but off by default, so they don't lengthen the line unless you ask for them. Enable any of them in your config:
+Several segments are available but off by default, so they don't lengthen the line unless you ask for them. Enable any of them in your config:
 
 ```json
-{ "showLines": true, "showSessionTime": true, "showBurnRate": true }
+{ "showLines": true, "showBurnRate": true, "showRepo": true, "showGitDirty": true }
 ```
+
+Session activity (from the `cost.*` fields):
 
 - **`showLines`** — lines added/removed this session, e.g. `+124 −18`.
 - **`showSessionTime`** — elapsed session time, e.g. `2h 13m`.
 - **`showBurnRate`** — spend rate in USD per hour, e.g. `$0.34/h` (needs at least ~30s of session time to extrapolate).
 
-All three come straight from the `cost.*` fields Claude Code already provides — no extra work, no network.
+Context and repository:
+
+- **`showRepo`** — the repository as `owner/name`, from `workspace.repo`.
+- **`showTokens`** — tokens currently held in the context window, e.g. `45.2k tok`, from `context_window.current_usage`.
+- **`showGitDirty`** — count of uncommitted changes, e.g. `±3` (hidden when the tree is clean). This runs `git status`, cached per session like the branch lookup.
+
+Session metadata:
+
+- **`showVersion`** — the Claude Code version, e.g. `v2.1.90`.
+- **`showOutputStyle`** — the active output style, from `output_style.name`.
+- **`showEffort`** — the thinking-effort level, from `effort.level`.
+
+Every one of these comes from data Claude Code already provides (only `showGitDirty` adds a local `git` call) — no network, no scraping.
 
 ## Usage notifications
 
