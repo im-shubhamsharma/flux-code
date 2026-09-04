@@ -200,15 +200,6 @@ function formatCountdown(resetAtSec, nowMs) {
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
-function formatResetClock(resetAtSec) {
-  if (resetAtSec === null || resetAtSec === void 0 || !Number.isFinite(resetAtSec)) {
-    return "";
-  }
-  const date = new Date(resetAtSec * 1e3);
-  const suffix = date.getHours() >= 12 ? "pm" : "am";
-  const hour = date.getHours() % 12 || 12;
-  return `${hour}:${String(date.getMinutes()).padStart(2, "0")}${suffix}`;
-}
 function formatDuration(ms) {
   if (ms === null || ms === void 0 || !Number.isFinite(ms) || ms < 0) return "--";
   const totalSeconds = Math.floor(ms / 1e3);
@@ -472,11 +463,10 @@ function extraSegments(model, config, ansi) {
 function fiveHourResetInfo(model, config, nowMs) {
   if (!config.showCountdown) return null;
   if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
-  const clock = formatResetClock(model.fiveHourResetAt);
   const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
-  if (!clock || countdown === "--") return null;
+  if (countdown === "--") return null;
   if (countdown === "now") return "resets now";
-  return `resets ${clock} (${countdown} left)`;
+  return `${countdown} left`;
 }
 function warnBadge(pct, config, ansi, glyph) {
   if (pct === null || !config.useIcons) return "";

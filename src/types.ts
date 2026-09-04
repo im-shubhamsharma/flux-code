@@ -169,13 +169,12 @@ export interface Config {
   showFiveHour: boolean;
   showWeekly: boolean;
   showCost: boolean;
-  /** Show 5-hour reset details once usage crosses `countdownAfterPercent`. */
+  /** Show time-left on the 5-hour segment once usage crosses `countdownAfterPercent`. */
   showCountdown: boolean;
   /**
-   * Usage percentage above which the 5-hour segment appends its reset details:
-   * the wall-clock reset time and the time left, e.g.
-   * `resets 4:32pm (2h 13m left)`. Default 50. Set 0 to always show it, or
-   * 100 (or `showCountdown: false`) to never show it.
+   * Usage percentage above which the 5-hour segment appends the time left,
+   * e.g. `2h 13m left`. Default 50. Set 0 to always show it, or 100 (or
+   * `showCountdown: false`) to never show it.
    */
   countdownAfterPercent: number;
   showWorkingDirectory: boolean;

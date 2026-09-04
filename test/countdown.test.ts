@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatCountdown,
-  formatDuration,
-  formatResetClock,
-  formatResetsIn,
-} from '../src/countdown';
+import { formatCountdown, formatDuration, formatResetsIn } from '../src/countdown';
 
 // Fixed reference clock (arbitrary but stable).
 const NOW = 1_700_000_000_000;
@@ -48,27 +43,6 @@ describe('formatResetsIn', () => {
 
   it('phrases an elapsed reset', () => {
     expect(formatResetsIn(at(-10), NOW)).toBe('Resets now');
-  });
-});
-
-describe('formatResetClock', () => {
-  // Build epochs from local-time Dates so the expectations hold in any timezone.
-  const epoch = (h: number, m: number): number => new Date(2026, 0, 15, h, m).getTime() / 1000;
-
-  it('returns an empty string when unavailable', () => {
-    expect(formatResetClock(null)).toBe('');
-    expect(formatResetClock(undefined)).toBe('');
-    expect(formatResetClock(Number.NaN)).toBe('');
-  });
-
-  it('formats an afternoon time with a zero-padded minute', () => {
-    expect(formatResetClock(epoch(16, 32))).toBe('4:32pm');
-    expect(formatResetClock(epoch(9, 5))).toBe('9:05am');
-  });
-
-  it('handles noon and midnight as 12', () => {
-    expect(formatResetClock(epoch(12, 15))).toBe('12:15pm');
-    expect(formatResetClock(epoch(0, 5))).toBe('12:05am');
   });
 });
 

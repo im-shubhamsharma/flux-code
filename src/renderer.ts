@@ -10,7 +10,7 @@
 
 import type { Ansi } from './colors';
 import { bg256ForPercent, colorForPercent, createAnsi } from './colors';
-import { formatCountdown, formatDuration, formatResetClock } from './countdown';
+import { formatCountdown, formatDuration } from './countdown';
 import {
   EMOJI_ICONS,
   NERD_ICONS,
@@ -92,20 +92,18 @@ function extraSegments(model: StatusModel, config: Config, ansi: Ansi): Extra[] 
 }
 
 /**
- * Reset details for the 5-hour window, shown once usage crosses
- * `countdownAfterPercent` (default 50%): the wall-clock time the window
- * resets plus the time left, e.g. "resets 4:32pm (2h 13m left)". Returns
- * `null` below the threshold or when the reset timestamp is unavailable, so
- * the line stays short while there is plenty of headroom.
+ * Time left in the 5-hour window, shown once usage crosses
+ * `countdownAfterPercent` (default 50%), e.g. "2h 13m left". Returns `null`
+ * below the threshold or when the reset timestamp is unavailable, so the
+ * line stays short while there is plenty of headroom.
  */
 function fiveHourResetInfo(model: StatusModel, config: Config, nowMs: number): string | null {
   if (!config.showCountdown) return null;
   if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
-  const clock = formatResetClock(model.fiveHourResetAt);
   const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
-  if (!clock || countdown === '--') return null;
+  if (countdown === '--') return null;
   if (countdown === 'now') return 'resets now';
-  return `resets ${clock} (${countdown} left)`;
+  return `${countdown} left`;
 }
 
 /** Escalating warning badge: yellow, red, then blinking red past the thresholds. */

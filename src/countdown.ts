@@ -41,21 +41,6 @@ export function formatResetsIn(resetAtSec: number | null | undefined, nowMs: num
   return `Resets in ${countdown}`;
 }
 
-/**
- * Local wall-clock time a window resets, e.g. "4:32pm" / "12:05am".
- * Returns "" when the timestamp is unavailable so callers can omit the
- * fragment entirely.
- */
-export function formatResetClock(resetAtSec: number | null | undefined): string {
-  if (resetAtSec === null || resetAtSec === undefined || !Number.isFinite(resetAtSec)) {
-    return '';
-  }
-  const date = new Date(resetAtSec * 1000);
-  const suffix = date.getHours() >= 12 ? 'pm' : 'am';
-  const hour = date.getHours() % 12 || 12;
-  return `${hour}:${String(date.getMinutes()).padStart(2, '0')}${suffix}`;
-}
-
 /** Format an elapsed duration in ms as "1h 4m" / "4m 12s" / "12s". */
 export function formatDuration(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return '--';

@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-09-04
+
+### Changed
+
+- **Shortened the 5-hour reset info.** It now shows only the time left, e.g.
+  `5h 61% 2h 13m left`, instead of `5h 61% resets 4:32pm (2h 13m left)` — the
+  wall-clock time was redundant next to the countdown and made every theme,
+  including `compact`, too long for a terminal status line. Still governed by
+  `countdownAfterPercent` (default `50`).
+- Removed the now-unused `formatResetClock` helper that produced the
+  wall-clock fragment.
+
 ## [1.4.0] - 2026-09-04
 
 ### Added
