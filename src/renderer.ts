@@ -2,14 +2,15 @@
  * Pure rendering: (StatusModel, Config, RenderContext) -> string.
  *
  * No stdin, no git, no clock reads happen here, so every theme is
- * deterministic and unit-testable. The six themes map one-to-one onto the
- * documented THEME SUPPORT list. Single-line themes join segments with a
- * separator; the `default` theme prints multiple rows (one per `\n`).
+ * deterministic and unit-testable. The five themes map one-to-one onto the
+ * documented THEME SUPPORT list; every theme renders a single line (the
+ * status line row in Claude Code is one row tall, so multi-line output only
+ * wastes space).
  */
 
 import type { Ansi } from './colors';
 import { bg256ForPercent, colorForPercent, createAnsi } from './colors';
-import { formatDuration, formatResetsIn } from './countdown';
+import { formatCountdown, formatDuration, formatResetClock } from './countdown';
 import {
   EMOJI_ICONS,
   NERD_ICONS,
@@ -90,12 +91,21 @@ function extraSegments(model: StatusModel, config: Config, ansi: Ansi): Extra[] 
   return out;
 }
 
-function barOptions(config: Config): BarOptions {
-  return { partial: config.partialBlocks };
-}
-
-function iconPrefix(icon: string, config: Config): string {
-  return config.useIcons && icon ? `${icon} ` : '';
+/**
+ * Reset details for the 5-hour window, shown once usage crosses
+ * `countdownAfterPercent` (default 50%): the wall-clock time the window
+ * resets plus the time left, e.g. "resets 4:32pm (2h 13m left)". Returns
+ * `null` below the threshold or when the reset timestamp is unavailable, so
+ * the line stays short while there is plenty of headroom.
+ */
+function fiveHourResetInfo(model: StatusModel, config: Config, nowMs: number): string | null {
+  if (!config.showCountdown) return null;
+  if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
+  const clock = formatResetClock(model.fiveHourResetAt);
+  const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
+  if (!clock || countdown === '--') return null;
+  if (countdown === 'now') return 'resets now';
+  return `resets ${clock} (${countdown} left)`;
 }
 
 /** Escalating warning badge: yellow, red, then blinking red past the thresholds. */
@@ -116,76 +126,9 @@ function fallback(model: StatusModel, config: Config, ansi: Ansi): string {
   return model.modelName ? ansi.bold(model.modelName) : config.missingText;
 }
 
-/** Multi-line rich layout (the documented "Default"). */
-function renderDefault(model: StatusModel, config: Config, ctx: RenderContext): string {
-  const { ansi, nowMs } = ctx;
-  const I = EMOJI_ICONS;
-  const lines: string[] = [];
-  const paint = (pct: number | null) => colorForPercent(ansi, pct, config.colorThresholds);
-  const bar = (pct: number | null) =>
-    paint(pct)(progressBar(pct, config.progressWidth, barOptions(config)));
-
-  if (config.showModel && model.modelName) {
-    lines.push(`${iconPrefix(I.model, config)}${ansi.bold(model.modelName)}`);
-  }
-  if (config.showBranch && model.branch) {
-    lines.push(`${iconPrefix(I.branch, config)}${ansi.blue(model.branch)}`);
-  }
-  if (config.showWorkingDirectory && model.cwdPath) {
-    lines.push(`${iconPrefix(I.dir, config)}${ansi.dim(model.cwdPath)}`);
-  }
-
-  if (config.showContext) {
-    lines.push(
-      `${iconPrefix(I.context, config)}Context${warnBadge(model.context, config, ansi, I.warn)}`,
-    );
-    lines.push(`${bar(model.context)} ${pctLabel(model.context, config)}`);
-  }
-  if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    lines.push(
-      `${iconPrefix(I.fiveHour, config)}5-hour${warnBadge(model.fiveHour, config, ansi, I.warn)}`,
-    );
-    lines.push(`${bar(model.fiveHour)} ${pctLabel(model.fiveHour, config)}`);
-    if (config.showCountdown) {
-      const resets = formatResetsIn(model.fiveHourResetAt, nowMs);
-      if (resets) lines.push(ansi.cyan(resets));
-    }
-  }
-  if (config.showWeekly && showPct(model.weekly, config)) {
-    lines.push(
-      `${iconPrefix(I.weekly, config)}Weekly${warnBadge(model.weekly, config, ansi, I.warn)}`,
-    );
-    lines.push(`${bar(model.weekly)} ${pctLabel(model.weekly, config)}`);
-    if (config.showCountdown) {
-      const resets = formatResetsIn(model.weeklyResetAt, nowMs);
-      if (resets) lines.push(ansi.cyan(resets));
-    }
-  }
-  if (config.showCost && model.cost !== null) {
-    lines.push(`${iconPrefix(I.cost, config)}${ansi.yellow(formatCost(model.cost))}`);
-  }
-  if (config.showLines) {
-    const frag = linesFragment(model, ansi);
-    if (frag) lines.push(`${iconPrefix(I.lines, config)}${frag}`);
-  }
-  if (config.showSessionTime) {
-    const t = sessionTimeText(model);
-    if (t) lines.push(`${iconPrefix(I.time, config)}${ansi.gray(t)}`);
-  }
-  if (config.showBurnRate) {
-    const b = formatBurnRate(model.cost, model.durationMs);
-    if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
-  }
-  for (const e of extraSegments(model, config, ansi)) {
-    lines.push(`${iconPrefix(I[e.icon], config)}${e.text}`);
-  }
-
-  return lines.length > 0 ? lines.join('\n') : fallback(model, config, ansi);
-}
-
 /** Single-line, pipe-separated compact layout. */
 function renderCompact(model: StatusModel, config: Config, ctx: RenderContext): string {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const paint = (pct: number | null) => colorForPercent(ansi, pct, config.colorThresholds);
   const segments: string[] = [];
 
@@ -198,9 +141,10 @@ function renderCompact(model: StatusModel, config: Config, ctx: RenderContext): 
     );
   }
   if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    segments.push(
-      `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}${warnBadge(model.fiveHour, config, ansi, EMOJI_ICONS.warn)}`,
-    );
+    let seg = `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}${warnBadge(model.fiveHour, config, ansi, EMOJI_ICONS.warn)}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
   }
   if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
@@ -227,7 +171,7 @@ function renderCompact(model: StatusModel, config: Config, ctx: RenderContext): 
 
 /** Single-line terse layout with a thin separator. */
 function renderMinimal(model: StatusModel, config: Config, ctx: RenderContext): string {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const paint = (pct: number | null) => colorForPercent(ansi, pct, config.colorThresholds);
   const segments: string[] = [];
 
@@ -235,8 +179,12 @@ function renderMinimal(model: StatusModel, config: Config, ctx: RenderContext): 
   if (config.showBranch && model.branch) segments.push(ansi.blue(model.branch));
   if (config.showContext)
     segments.push(`Ctx ${paint(model.context)(pctLabel(model.context, config))}`);
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(`5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`);
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    let seg = `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
+  }
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${paint(model.weekly)(pctLabel(model.weekly, config))}`);
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
@@ -265,7 +213,7 @@ interface PowerlineSegment {
 
 /** Powerline layout: colored background segments chained with separators. */
 function renderPowerline(model: StatusModel, config: Config, ctx: RenderContext): string {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const segments: PowerlineSegment[] = [];
   const white = 15;
 
@@ -282,8 +230,12 @@ function renderPowerline(model: StatusModel, config: Config, ctx: RenderContext)
     bg: bg256ForPercent(pct, config.colorThresholds),
   });
   if (config.showContext) segments.push(pctSeg('CTX', model.context));
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(pctSeg('5H', model.fiveHour));
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    const seg = pctSeg('5H', model.fiveHour);
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg.text = `${seg.text.trimEnd()} · ${reset} `;
+    segments.push(seg);
+  }
   if (config.showWeekly && showPct(model.weekly, config)) segments.push(pctSeg('7D', model.weekly));
   if (config.showCost && model.cost !== null) {
     segments.push({ text: ` ${formatCost(model.cost)} `, fg: white, bg: 22 });
@@ -339,7 +291,7 @@ function renderPowerline(model: StatusModel, config: Config, ctx: RenderContext)
 
 /** Single-line layout using Nerd Font glyphs. */
 function renderNerdFont(model: StatusModel, config: Config, ctx: RenderContext): string {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const I = NERD_ICONS;
   const paint = (pct: number | null) => colorForPercent(ansi, pct, config.colorThresholds);
   const useIcons = config.useIcons;
@@ -357,9 +309,10 @@ function renderNerdFont(model: StatusModel, config: Config, ctx: RenderContext):
     );
   }
   if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    segments.push(
-      `${useIcons ? `${I.fiveHour} ` : '5h '}${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`,
-    );
+    let seg = `${useIcons ? `${I.fiveHour} ` : '5h '}${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
   }
   if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
@@ -389,7 +342,7 @@ function renderNerdFont(model: StatusModel, config: Config, ctx: RenderContext):
 }
 
 /** Plain-text layout: ASCII only, colors always off. Safe for tmux/CI/logs. */
-function renderPlainText(model: StatusModel, config: Config): string {
+function renderPlainText(model: StatusModel, config: Config, ctx: RenderContext): string {
   const segments: string[] = [];
   const barOpts: BarOptions = { filled: '#', empty: '-', partial: false };
 
@@ -401,8 +354,10 @@ function renderPlainText(model: StatusModel, config: Config): string {
       `Ctx ${pctLabel(model.context, config)} [${progressBar(model.context, config.progressWidth, barOpts)}]`,
     );
   }
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(`5h ${pctLabel(model.fiveHour, config)}`);
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    const reset = fiveHourResetInfo(model, config, ctx.nowMs);
+    segments.push(`5h ${pctLabel(model.fiveHour, config)}${reset ? ` ${reset}` : ''}`);
+  }
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${pctLabel(model.weekly, config)}`);
   if (config.showCost && model.cost !== null) segments.push(formatCost(model.cost));
@@ -438,8 +393,6 @@ export function render(model: StatusModel, config: Config, ctx: RenderContext): 
   const themedCtx: RenderContext = { ...ctx, ansi };
 
   switch (config.theme) {
-    case 'compact':
-      return renderCompact(model, config, themedCtx);
     case 'minimal':
       return renderMinimal(model, config, themedCtx);
     case 'powerline':
@@ -447,9 +400,9 @@ export function render(model: StatusModel, config: Config, ctx: RenderContext): 
     case 'nerd-font':
       return renderNerdFont(model, config, themedCtx);
     case 'plain-text':
-      return renderPlainText(model, config);
-    case 'default':
+      return renderPlainText(model, config, themedCtx);
+    case 'compact':
     default:
-      return renderDefault(model, config, themedCtx);
+      return renderCompact(model, config, themedCtx);
   }
 }

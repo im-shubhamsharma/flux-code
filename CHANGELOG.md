@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-04
+
+### Added
+
+- **5-hour reset details in every theme**: once 5-hour usage crosses 50%, the
+  segment appends the wall-clock reset time and the time left, e.g.
+  `5h 61% resets 4:32pm (2h 13m left)` — so you can plan work around the
+  window without leaving the terminal. Configure the threshold with
+  `countdownAfterPercent` (default `50`; `0` always shows it, `100` or
+  `showCountdown: false` never does).
+- Website: live preview cards for the `powerline` and `nerd-font` themes.
+
+### Removed
+
+- **The multi-line `default` dashboard theme.** The Claude Code status line is
+  a single row, so the dashboard only consumed vertical terminal space. Every
+  remaining theme (`compact`, `minimal`, `powerline`, `nerd-font`,
+  `plain-text`) is single-line. A config that still says `"theme": "default"`
+  falls back to `compact`.
+- The `partialBlocks` config option — it only affected the removed dashboard's
+  Unicode bars. The key is now ignored (configs containing it stay valid).
+
 ## [1.3.0] - 2026-07-28
 
 ### Added

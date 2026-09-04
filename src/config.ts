@@ -26,6 +26,7 @@ export const DEFAULT_CONFIG: Config = {
   showWeekly: true,
   showCost: true,
   showCountdown: true,
+  countdownAfterPercent: 50,
   showWorkingDirectory: false,
   showLines: false,
   showSessionTime: false,
@@ -44,7 +45,6 @@ export const DEFAULT_CONFIG: Config = {
   progressWidth: 12,
   useColors: true,
   useIcons: true,
-  partialBlocks: false,
   flashOnCritical: true,
   separator: ' | ',
   missingText: '--',
@@ -52,15 +52,10 @@ export const DEFAULT_CONFIG: Config = {
   warnThresholds: { warn: 80, danger: 90, flash: 95 },
 };
 
-const LAYOUTS: readonly Layout[] = ['default', 'compact', 'minimal'];
-const THEMES: readonly Theme[] = [
-  'default',
-  'minimal',
-  'compact',
-  'powerline',
-  'nerd-font',
-  'plain-text',
-];
+const LAYOUTS: readonly Layout[] = ['compact', 'minimal'];
+// The multi-line 'default' theme was removed in v1.4.0; a config that still
+// names it fails validation here and falls back to the compact default.
+const THEMES: readonly Theme[] = ['minimal', 'compact', 'powerline', 'nerd-font', 'plain-text'];
 
 const BOOLEAN_KEYS = [
   'showModel',
@@ -85,7 +80,6 @@ const BOOLEAN_KEYS = [
   'notifyBell',
   'useColors',
   'useIcons',
-  'partialBlocks',
   'flashOnCritical',
 ] as const satisfies readonly (keyof Config)[];
 
@@ -127,6 +121,9 @@ export function mergeConfig(raw: unknown): Config {
   }
   if (isFiniteNumber(raw.progressWidth)) {
     cfg.progressWidth = Math.max(1, Math.min(60, Math.floor(raw.progressWidth)));
+  }
+  if (isFiniteNumber(raw.countdownAfterPercent)) {
+    cfg.countdownAfterPercent = Math.max(0, Math.min(100, Math.floor(raw.countdownAfterPercent)));
   }
 
   if (typeof raw.separator === 'string') cfg.separator = raw.separator;

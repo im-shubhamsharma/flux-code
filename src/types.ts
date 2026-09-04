@@ -128,11 +128,16 @@ export interface StatusInput {
   worktree?: WorktreeInfo;
 }
 
-/** Structural density of the rendered line(s). Alias for a subset of themes. */
-export type Layout = 'default' | 'compact' | 'minimal';
+/** Structural density of the rendered line. Alias for a subset of themes. */
+export type Layout = 'compact' | 'minimal';
 
-/** Visual style. `theme` is the canonical selector; `layout` maps onto it. */
-export type Theme = 'default' | 'minimal' | 'compact' | 'powerline' | 'nerd-font' | 'plain-text';
+/**
+ * Visual style. `theme` is the canonical selector; `layout` maps onto it.
+ * (The old multi-line `default` theme was removed in v1.4.0 — every theme is
+ * now a single line. A config that still says `"default"` falls back to
+ * `compact`.)
+ */
+export type Theme = 'minimal' | 'compact' | 'powerline' | 'nerd-font' | 'plain-text';
 
 /** Percentage boundaries that pick the segment color. */
 export interface ColorThresholds {
@@ -164,7 +169,15 @@ export interface Config {
   showFiveHour: boolean;
   showWeekly: boolean;
   showCost: boolean;
+  /** Show 5-hour reset details once usage crosses `countdownAfterPercent`. */
   showCountdown: boolean;
+  /**
+   * Usage percentage above which the 5-hour segment appends its reset details:
+   * the wall-clock reset time and the time left, e.g.
+   * `resets 4:32pm (2h 13m left)`. Default 50. Set 0 to always show it, or
+   * 100 (or `showCountdown: false`) to never show it.
+   */
+  countdownAfterPercent: number;
   showWorkingDirectory: boolean;
   /** Show lines added/removed this session (`+124 −18`). Off by default. */
   showLines: boolean;
@@ -209,8 +222,6 @@ export interface Config {
   useColors: boolean;
   /** Render emoji / nerd-font glyphs. */
   useIcons: boolean;
-  /** Use sub-cell (eighth-block) partial fills for smoother bars. */
-  partialBlocks: boolean;
   /** Emit the ANSI blink code for values past the flash threshold. */
   flashOnCritical: boolean;
   /** Segment separator for single-line themes. */

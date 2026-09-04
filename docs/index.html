@@ -481,6 +481,31 @@
         padding: 0 18px 16px;
       }
 
+      /* Powerline preview: flush colored segments joined by CSS triangles. */
+      .pl-body {
+        display: flex;
+        align-items: stretch;
+        white-space: nowrap;
+        line-height: 2.1;
+      }
+      .pl-seg {
+        padding: 0 10px;
+        flex: none;
+      }
+      .pl-sep {
+        position: relative;
+        width: 0.62em;
+        flex: none;
+        background: var(--l-next, transparent);
+      }
+      .pl-sep::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--l-prev);
+        clip-path: polygon(0 0, 100% 50%, 0 100%);
+      }
+
       /* Table */
       .table-wrap {
         overflow-x: auto;
@@ -601,7 +626,7 @@
             <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
             <span class="term-title">claude — status line</span>
           </div>
-          <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">feature/auth</span> <span class="sep">|</span> Ctx <span class="c-orange">82%</span> ⚠ <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
+          <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">feature/auth</span> <span class="sep">|</span> Ctx <span class="c-orange">82%</span> ⚠ <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="c-cyan">resets 4:32pm (2h 13m left)</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
         </div>
 
         <div class="cta">
@@ -614,7 +639,7 @@
           <span>MIT licensed</span>
           <span>Node ≥ 18</span>
           <span>Zero runtime deps</span>
-          <span>6 themes</span>
+          <span>5 themes · all single-line</span>
         </div>
       </div>
     </header>
@@ -640,10 +665,10 @@
           </div>
           <div class="card">
             <div class="ic">🎨</div>
-            <h3>Six themes</h3>
+            <h3>Five single-line themes</h3>
             <p>
-              Compact, a multi-line dashboard, minimal, powerline, nerd-font, and a plain-text mode
-              safe for tmux, CI, and logs.
+              Compact, minimal, powerline, nerd-font, and a plain-text mode safe for tmux, CI, and
+              logs. Every theme fits the one-row status line — no wasted vertical space.
             </p>
           </div>
           <div class="card">
@@ -748,24 +773,36 @@
               <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
               <span class="term-title"><span class="tag">compact</span> · default</span>
             </div>
-            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">main</span> <span class="sep">|</span> Ctx <span class="c-green">41%</span> <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
-            <p class="theme-note">One line, pipe-separated. The everyday default.</p>
+            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">|</span> <span class="c-branch">main</span> <span class="sep">|</span> Ctx <span class="c-green">41%</span> <span class="sep">|</span> 5h <span class="c-yellow">61%</span> <span class="c-cyan">resets 4:32pm (2h 13m left)</span> <span class="sep">|</span> Week <span class="c-green">19%</span> <span class="sep">|</span> <span class="c-cost">$0.12</span></div>
+            <p class="theme-note">
+              One line, pipe-separated. The everyday default. Past 50% the 5-hour segment shows
+              when it resets and how long is left.
+            </p>
           </div>
 
           <div class="term theme-card">
             <div class="term-bar">
               <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-              <span class="term-title"><span class="tag">default</span> · dashboard</span>
+              <span class="term-title"><span class="tag">powerline</span></span>
             </div>
-            <div class="term-body">🤖 <span class="c-model">Opus 4.8</span>
-🌿 <span class="c-branch">feature/auth</span>
-🧠 Context <span class="c-orange">⚠</span>
-<span class="bar-o">██████████</span><span class="bar-e">░░</span> 82%
-⚡ 5-hour
-<span class="bar-y">███████</span><span class="bar-e">░░░░░</span> 61%
-<span class="c-cyan">Resets in 2h 13m</span>
-💰 <span class="c-cost">$0.12</span></div>
-            <p class="theme-note">Multi-line, with bars and reset countdowns.</p>
+            <div class="term-body pl-body"><span class="pl-seg" style="background:#005f87;color:#fff">Opus 4.8</span><span class="pl-sep" style="--l-prev:#005f87;--l-next:#585858"></span><span class="pl-seg" style="background:#585858;color:#fff">&#8225; feature/auth</span><span class="pl-sep" style="--l-prev:#585858;--l-next:#ff8700"></span><span class="pl-seg" style="background:#ff8700;color:#111">CTX 82%</span><span class="pl-sep" style="--l-prev:#ff8700;--l-next:#ffd700"></span><span class="pl-seg" style="background:#ffd700;color:#111">5H 61% · resets 4:32pm (2h 13m left)</span><span class="pl-sep" style="--l-prev:#ffd700;--l-next:#00af00"></span><span class="pl-seg" style="background:#00af00;color:#111">7D 19%</span><span class="pl-sep" style="--l-prev:#00af00;--l-next:#005f00"></span><span class="pl-seg" style="background:#005f00;color:#fff">$0.12</span><span class="pl-sep" style="--l-prev:#005f00"></span></div>
+            <p class="theme-note">
+              Colored background segments chained with separators. Needs a Powerline or Nerd Font
+              in your terminal.
+            </p>
+          </div>
+
+          <div class="term theme-card">
+            <div class="term-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="term-title"><span class="tag">nerd-font</span></span>
+            </div>
+            <div class="term-body">❖ <span class="c-model">Opus 4.8</span>  ⎇ <span class="c-branch">feature/auth</span>  ◔ <span class="c-orange">82%</span>  ↯ <span class="c-yellow">61%</span> <span class="c-cyan">resets 4:32pm (2h 13m left)</span>  ▤ <span class="c-green">19%</span>  $ <span class="c-cost">0.12</span></div>
+            <p class="theme-note">
+              Glyph icons instead of labels — shown here with stand-ins; a
+              <a href="https://www.nerdfonts.com">Nerd Font</a> terminal renders crisp Font Awesome
+              icons.
+            </p>
           </div>
 
           <div class="term theme-card">
@@ -773,7 +810,7 @@
               <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
               <span class="term-title"><span class="tag">minimal</span></span>
             </div>
-            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">│</span> 5h <span class="c-yellow">61%</span> <span class="sep">│</span> Week <span class="c-green">19%</span></div>
+            <div class="term-body"><span class="c-model">Opus 4.8</span> <span class="sep">│</span> 5h <span class="c-green">24%</span> <span class="sep">│</span> Week <span class="c-green">11%</span></div>
             <p class="theme-note">Only the numbers that matter, thin separators.</p>
           </div>
 
@@ -787,8 +824,7 @@
           </div>
         </div>
         <p style="color: var(--muted); font-size: 0.9rem; margin-top: 16px">
-          <code>powerline</code> and <code>nerd-font</code> are also included. Run
-          <code>flux-code preview</code> to see all six in your own terminal with color.
+          Run <code>flux-code preview</code> to see all five in your own terminal with color.
         </p>
       </div>
     </section>
@@ -829,7 +865,15 @@
               <tr>
                 <td><code>theme</code></td>
                 <td><span class="def">compact</span></td>
-                <td>compact · default · minimal · powerline · nerd-font · plain-text</td>
+                <td>compact · minimal · powerline · nerd-font · plain-text</td>
+              </tr>
+              <tr>
+                <td><code>countdownAfterPercent</code></td>
+                <td><span class="def">50</span></td>
+                <td>
+                  5-hour usage above which the segment appends
+                  <code>resets 4:32pm (2h 13m left)</code>
+                </td>
               </tr>
               <tr>
                 <td><code>hideUnavailable</code></td>
@@ -902,11 +946,6 @@
                 <td>Progress-bar width in characters (1–60)</td>
               </tr>
               <tr>
-                <td><code>partialBlocks</code></td>
-                <td><span class="def">false</span></td>
-                <td>Eighth-block glyphs for smoother bars</td>
-              </tr>
-              <tr>
                 <td><code>useColors</code></td>
                 <td><span class="def">true</span></td>
                 <td>ANSI colors (also honors <code>NO_COLOR</code>)</td>
@@ -932,8 +971,8 @@
             <pre><span class="cmt">// A quiet single line — only the numbers</span>
 { <span class="c-branch">"theme"</span>: <span class="c-green">"minimal"</span>, <span class="c-branch">"showBranch"</span>: <span class="c-orange">false</span>, <span class="c-branch">"showContext"</span>: <span class="c-orange">false</span> }
 
-<span class="cmt">// A wide, high-contrast dashboard</span>
-{ <span class="c-branch">"theme"</span>: <span class="c-green">"default"</span>, <span class="c-branch">"progressWidth"</span>: <span class="c-yellow">20</span>, <span class="c-branch">"partialBlocks"</span>: <span class="c-orange">true</span> }
+<span class="cmt">// Always show the 5-hour reset time, from the very first percent</span>
+{ <span class="c-branch">"countdownAfterPercent"</span>: <span class="c-yellow">0</span> }
 
 <span class="cmt">// Warn earlier: yellow at 50%, red at 80%</span>
 { <span class="c-branch">"colorThresholds"</span>: { <span class="c-branch">"yellow"</span>: <span class="c-yellow">50</span>, <span class="c-branch">"orange"</span>: <span class="c-yellow">70</span>, <span class="c-branch">"red"</span>: <span class="c-yellow">80</span> } }</pre>
@@ -957,6 +996,16 @@
             Nothing can make the data arrive sooner; the plugin itself renders instantly. This is
             why <code>hideUnavailable</code> defaults to <code>true</code> — no <code>--</code>
             flicker during that window.
+          </p>
+        </details>
+        <details>
+          <summary>Where did the multi-line <code>default</code> theme go?</summary>
+          <p>
+            Removed in v1.4.0. The Claude Code status line is a single row, so a multi-line
+            dashboard only ate vertical space in the terminal. Every remaining theme is one line;
+            a config that still says <code>"theme": "default"</code> falls back to
+            <code>compact</code>. The reset countdown it carried now lives in the 5-hour segment
+            itself — see <code>countdownAfterPercent</code>.
           </p>
         </details>
         <details>

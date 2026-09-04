@@ -20,6 +20,7 @@ var DEFAULT_CONFIG = {
   showWeekly: true,
   showCost: true,
   showCountdown: true,
+  countdownAfterPercent: 50,
   showWorkingDirectory: false,
   showLines: false,
   showSessionTime: false,
@@ -38,22 +39,14 @@ var DEFAULT_CONFIG = {
   progressWidth: 12,
   useColors: true,
   useIcons: true,
-  partialBlocks: false,
   flashOnCritical: true,
   separator: " | ",
   missingText: "--",
   colorThresholds: { yellow: 60, orange: 80, red: 90 },
   warnThresholds: { warn: 80, danger: 90, flash: 95 }
 };
-var LAYOUTS = ["default", "compact", "minimal"];
-var THEMES = [
-  "default",
-  "minimal",
-  "compact",
-  "powerline",
-  "nerd-font",
-  "plain-text"
-];
+var LAYOUTS = ["compact", "minimal"];
+var THEMES = ["minimal", "compact", "powerline", "nerd-font", "plain-text"];
 var BOOLEAN_KEYS = [
   "showModel",
   "showBranch",
@@ -77,7 +70,6 @@ var BOOLEAN_KEYS = [
   "notifyBell",
   "useColors",
   "useIcons",
-  "partialBlocks",
   "flashOnCritical"
 ];
 function configPath(explicit) {
@@ -109,6 +101,9 @@ function mergeConfig(raw) {
   }
   if (isFiniteNumber(raw.progressWidth)) {
     cfg.progressWidth = Math.max(1, Math.min(60, Math.floor(raw.progressWidth)));
+  }
+  if (isFiniteNumber(raw.countdownAfterPercent)) {
+    cfg.countdownAfterPercent = Math.max(0, Math.min(100, Math.floor(raw.countdownAfterPercent)));
   }
   if (typeof raw.separator === "string") cfg.separator = raw.separator;
   if (typeof raw.missingText === "string") cfg.missingText = raw.missingText;
@@ -205,11 +200,14 @@ function formatCountdown(resetAtSec, nowMs) {
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
-function formatResetsIn(resetAtSec, nowMs) {
-  const countdown = formatCountdown(resetAtSec, nowMs);
-  if (countdown === "--") return "";
-  if (countdown === "now") return "Resets now";
-  return `Resets in ${countdown}`;
+function formatResetClock(resetAtSec) {
+  if (resetAtSec === null || resetAtSec === void 0 || !Number.isFinite(resetAtSec)) {
+    return "";
+  }
+  const date = new Date(resetAtSec * 1e3);
+  const suffix = date.getHours() >= 12 ? "pm" : "am";
+  const hour = date.getHours() % 12 || 12;
+  return `${hour}:${String(date.getMinutes()).padStart(2, "0")}${suffix}`;
 }
 function formatDuration(ms) {
   if (ms === null || ms === void 0 || !Number.isFinite(ms) || ms < 0) return "--";
@@ -471,11 +469,14 @@ function extraSegments(model, config, ansi) {
   }
   return out;
 }
-function barOptions(config) {
-  return { partial: config.partialBlocks };
-}
-function iconPrefix(icon, config) {
-  return config.useIcons && icon ? `${icon} ` : "";
+function fiveHourResetInfo(model, config, nowMs) {
+  if (!config.showCountdown) return null;
+  if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
+  const clock = formatResetClock(model.fiveHourResetAt);
+  const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
+  if (!clock || countdown === "--") return null;
+  if (countdown === "now") return "resets now";
+  return `resets ${clock} (${countdown} left)`;
 }
 function warnBadge(pct, config, ansi, glyph) {
   if (pct === null || !config.useIcons) return "";
@@ -491,69 +492,8 @@ function warnBadge(pct, config, ansi, glyph) {
 function fallback(model, config, ansi) {
   return model.modelName ? ansi.bold(model.modelName) : config.missingText;
 }
-function renderDefault(model, config, ctx) {
-  const { ansi, nowMs } = ctx;
-  const I = EMOJI_ICONS;
-  const lines = [];
-  const paint = (pct) => colorForPercent(ansi, pct, config.colorThresholds);
-  const bar = (pct) => paint(pct)(progressBar(pct, config.progressWidth, barOptions(config)));
-  if (config.showModel && model.modelName) {
-    lines.push(`${iconPrefix(I.model, config)}${ansi.bold(model.modelName)}`);
-  }
-  if (config.showBranch && model.branch) {
-    lines.push(`${iconPrefix(I.branch, config)}${ansi.blue(model.branch)}`);
-  }
-  if (config.showWorkingDirectory && model.cwdPath) {
-    lines.push(`${iconPrefix(I.dir, config)}${ansi.dim(model.cwdPath)}`);
-  }
-  if (config.showContext) {
-    lines.push(
-      `${iconPrefix(I.context, config)}Context${warnBadge(model.context, config, ansi, I.warn)}`
-    );
-    lines.push(`${bar(model.context)} ${pctLabel(model.context, config)}`);
-  }
-  if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    lines.push(
-      `${iconPrefix(I.fiveHour, config)}5-hour${warnBadge(model.fiveHour, config, ansi, I.warn)}`
-    );
-    lines.push(`${bar(model.fiveHour)} ${pctLabel(model.fiveHour, config)}`);
-    if (config.showCountdown) {
-      const resets = formatResetsIn(model.fiveHourResetAt, nowMs);
-      if (resets) lines.push(ansi.cyan(resets));
-    }
-  }
-  if (config.showWeekly && showPct(model.weekly, config)) {
-    lines.push(
-      `${iconPrefix(I.weekly, config)}Weekly${warnBadge(model.weekly, config, ansi, I.warn)}`
-    );
-    lines.push(`${bar(model.weekly)} ${pctLabel(model.weekly, config)}`);
-    if (config.showCountdown) {
-      const resets = formatResetsIn(model.weeklyResetAt, nowMs);
-      if (resets) lines.push(ansi.cyan(resets));
-    }
-  }
-  if (config.showCost && model.cost !== null) {
-    lines.push(`${iconPrefix(I.cost, config)}${ansi.yellow(formatCost(model.cost))}`);
-  }
-  if (config.showLines) {
-    const frag = linesFragment(model, ansi);
-    if (frag) lines.push(`${iconPrefix(I.lines, config)}${frag}`);
-  }
-  if (config.showSessionTime) {
-    const t = sessionTimeText(model);
-    if (t) lines.push(`${iconPrefix(I.time, config)}${ansi.gray(t)}`);
-  }
-  if (config.showBurnRate) {
-    const b = formatBurnRate(model.cost, model.durationMs);
-    if (b) lines.push(`${iconPrefix(I.burn, config)}${ansi.yellow(b)}`);
-  }
-  for (const e of extraSegments(model, config, ansi)) {
-    lines.push(`${iconPrefix(I[e.icon], config)}${e.text}`);
-  }
-  return lines.length > 0 ? lines.join("\n") : fallback(model, config, ansi);
-}
 function renderCompact(model, config, ctx) {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const paint = (pct) => colorForPercent(ansi, pct, config.colorThresholds);
   const segments = [];
   if (config.showModel && model.modelName) segments.push(ansi.bold(model.modelName));
@@ -565,9 +505,10 @@ function renderCompact(model, config, ctx) {
     );
   }
   if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    segments.push(
-      `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}${warnBadge(model.fiveHour, config, ansi, EMOJI_ICONS.warn)}`
-    );
+    let seg = `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}${warnBadge(model.fiveHour, config, ansi, EMOJI_ICONS.warn)}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
   }
   if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
@@ -591,15 +532,19 @@ function renderCompact(model, config, ctx) {
   return segments.length > 0 ? segments.join(config.separator) : fallback(model, config, ansi);
 }
 function renderMinimal(model, config, ctx) {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const paint = (pct) => colorForPercent(ansi, pct, config.colorThresholds);
   const segments = [];
   if (config.showModel && model.modelName) segments.push(ansi.bold(model.modelName));
   if (config.showBranch && model.branch) segments.push(ansi.blue(model.branch));
   if (config.showContext)
     segments.push(`Ctx ${paint(model.context)(pctLabel(model.context, config))}`);
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(`5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`);
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    let seg = `5h ${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
+  }
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${paint(model.weekly)(pctLabel(model.weekly, config))}`);
   if (config.showCost && model.cost !== null) segments.push(ansi.yellow(formatCost(model.cost)));
@@ -619,7 +564,7 @@ function renderMinimal(model, config, ctx) {
   return segments.length > 0 ? segments.join(" \u2502 ") : fallback(model, config, ansi);
 }
 function renderPowerline(model, config, ctx) {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const segments = [];
   const white = 15;
   if (config.showModel && model.modelName) {
@@ -635,8 +580,12 @@ function renderPowerline(model, config, ctx) {
     bg: bg256ForPercent(pct, config.colorThresholds)
   });
   if (config.showContext) segments.push(pctSeg("CTX", model.context));
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(pctSeg("5H", model.fiveHour));
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    const seg = pctSeg("5H", model.fiveHour);
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg.text = `${seg.text.trimEnd()} \xB7 ${reset} `;
+    segments.push(seg);
+  }
   if (config.showWeekly && showPct(model.weekly, config)) segments.push(pctSeg("7D", model.weekly));
   if (config.showCost && model.cost !== null) {
     segments.push({ text: ` ${formatCost(model.cost)} `, fg: white, bg: 22 });
@@ -688,7 +637,7 @@ function renderPowerline(model, config, ctx) {
   return out;
 }
 function renderNerdFont(model, config, ctx) {
-  const { ansi } = ctx;
+  const { ansi, nowMs } = ctx;
   const I = NERD_ICONS;
   const paint = (pct) => colorForPercent(ansi, pct, config.colorThresholds);
   const useIcons = config.useIcons;
@@ -705,9 +654,10 @@ function renderNerdFont(model, config, ctx) {
     );
   }
   if (config.showFiveHour && showPct(model.fiveHour, config)) {
-    segments.push(
-      `${useIcons ? `${I.fiveHour} ` : "5h "}${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`
-    );
+    let seg = `${useIcons ? `${I.fiveHour} ` : "5h "}${paint(model.fiveHour)(pctLabel(model.fiveHour, config))}`;
+    const reset = fiveHourResetInfo(model, config, nowMs);
+    if (reset) seg += ` ${ansi.cyan(reset)}`;
+    segments.push(seg);
   }
   if (config.showWeekly && showPct(model.weekly, config)) {
     segments.push(
@@ -734,7 +684,7 @@ function renderNerdFont(model, config, ctx) {
   }
   return segments.length > 0 ? segments.join("  ") : fallback(model, config, ansi);
 }
-function renderPlainText(model, config) {
+function renderPlainText(model, config, ctx) {
   const segments = [];
   const barOpts = { filled: "#", empty: "-", partial: false };
   if (config.showModel && model.modelName) segments.push(model.modelName);
@@ -745,8 +695,10 @@ function renderPlainText(model, config) {
       `Ctx ${pctLabel(model.context, config)} [${progressBar(model.context, config.progressWidth, barOpts)}]`
     );
   }
-  if (config.showFiveHour && showPct(model.fiveHour, config))
-    segments.push(`5h ${pctLabel(model.fiveHour, config)}`);
+  if (config.showFiveHour && showPct(model.fiveHour, config)) {
+    const reset = fiveHourResetInfo(model, config, ctx.nowMs);
+    segments.push(`5h ${pctLabel(model.fiveHour, config)}${reset ? ` ${reset}` : ""}`);
+  }
   if (config.showWeekly && showPct(model.weekly, config))
     segments.push(`Week ${pctLabel(model.weekly, config)}`);
   if (config.showCost && model.cost !== null) segments.push(formatCost(model.cost));
@@ -777,8 +729,6 @@ function render(model, config, ctx) {
   const ansi = config.theme === "plain-text" ? createAnsi(false) : ctx.ansi;
   const themedCtx = { ...ctx, ansi };
   switch (config.theme) {
-    case "compact":
-      return renderCompact(model, config, themedCtx);
     case "minimal":
       return renderMinimal(model, config, themedCtx);
     case "powerline":
@@ -786,10 +736,10 @@ function render(model, config, ctx) {
     case "nerd-font":
       return renderNerdFont(model, config, themedCtx);
     case "plain-text":
-      return renderPlainText(model, config);
-    case "default":
+      return renderPlainText(model, config, themedCtx);
+    case "compact":
     default:
-      return renderDefault(model, config, themedCtx);
+      return renderCompact(model, config, themedCtx);
   }
 }
 
@@ -962,14 +912,7 @@ function mockInput(kind) {
     }
   };
 }
-var PREVIEW_THEMES = [
-  "default",
-  "compact",
-  "minimal",
-  "powerline",
-  "nerd-font",
-  "plain-text"
-];
+var PREVIEW_THEMES = ["compact", "minimal", "powerline", "nerd-font", "plain-text"];
 function runPreview(args) {
   const requested = args.find((a) => !a.startsWith("-"));
   const themes = requested ? [requested] : PREVIEW_THEMES;
@@ -1040,7 +983,7 @@ CONFIG
   ~/.claude/flux-code.json  (override with FLUX_CODE_CONFIG)
 
 THEMES
-  default, compact, minimal, powerline, nerd-font, plain-text
+  compact, minimal, powerline, nerd-font, plain-text
 `
   );
   return 0;

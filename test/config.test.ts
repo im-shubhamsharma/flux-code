@@ -59,6 +59,19 @@ describe('mergeConfig', () => {
     expect(mergeConfig({ theme: 'rainbow' }).theme).toBe(DEFAULT_CONFIG.theme);
   });
 
+  it('falls back to compact for the removed multi-line default theme', () => {
+    expect(mergeConfig({ theme: 'default' }).theme).toBe('compact');
+    expect(mergeConfig({ layout: 'default' }).theme).toBe('compact');
+  });
+
+  it('clamps countdownAfterPercent to [0, 100] and ignores bad types', () => {
+    expect(mergeConfig({}).countdownAfterPercent).toBe(50);
+    expect(mergeConfig({ countdownAfterPercent: 75 }).countdownAfterPercent).toBe(75);
+    expect(mergeConfig({ countdownAfterPercent: -5 }).countdownAfterPercent).toBe(0);
+    expect(mergeConfig({ countdownAfterPercent: 200 }).countdownAfterPercent).toBe(100);
+    expect(mergeConfig({ countdownAfterPercent: 'half' }).countdownAfterPercent).toBe(50);
+  });
+
   it('merges nested thresholds partially', () => {
     const cfg = mergeConfig({ colorThresholds: { orange: 75 } });
     expect(cfg.colorThresholds).toEqual({ yellow: 60, orange: 75, red: 90 });

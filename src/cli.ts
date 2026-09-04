@@ -155,14 +155,7 @@ function mockInput(kind: 'rich' | 'sparse'): StatusInput {
   };
 }
 
-const PREVIEW_THEMES = [
-  'default',
-  'compact',
-  'minimal',
-  'powerline',
-  'nerd-font',
-  'plain-text',
-] as const;
+const PREVIEW_THEMES = ['compact', 'minimal', 'powerline', 'nerd-font', 'plain-text'] as const;
 
 function runPreview(args: string[]): number {
   const requested = args.find((a) => !a.startsWith('-'));
@@ -242,7 +235,7 @@ CONFIG
   ~/.claude/flux-code.json  (override with FLUX_CODE_CONFIG)
 
 THEMES
-  default, compact, minimal, powerline, nerd-font, plain-text
+  compact, minimal, powerline, nerd-font, plain-text
 `,
   );
   return 0;

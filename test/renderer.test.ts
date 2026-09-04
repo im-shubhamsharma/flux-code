@@ -168,29 +168,65 @@ describe('render: compact', () => {
   });
 });
 
-describe('render: default (multi-line)', () => {
-  it('emits multiple rows including labels, percentage and countdown', () => {
+describe('render: 5-hour reset info', () => {
+  // The clock fragment is timezone-dependent, so match its shape, not a value.
+  const RESET_INFO = /resets \d{1,2}:\d{2}(am|pm) \(2h 13m left\)/;
+
+  it('appends reset time and time left once usage crosses 50%', () => {
     const out = render(
-      model(),
-      config({ theme: 'default', useColors: false, useIcons: false }),
+      model({ fiveHour: 61 }),
+      config({ theme: 'compact', useColors: false, useIcons: false }),
       plainCtx(),
     );
-    const lines = out.split('\n');
-    expect(lines).toContain('Opus 4');
-    expect(lines).toContain('feature/auth');
-    expect(out).toContain('Context');
-    expect(out).toContain('41%');
-    expect(out).toContain('Resets in 2h 13m');
-    expect(out).toContain('Resets in 5d 0h');
+    expect(out).toMatch(/5h 61% resets \d{1,2}:\d{2}(am|pm) \(2h 13m left\)/);
   });
 
-  it('omits the countdown row when the reset is unavailable', () => {
+  it('stays hidden at or below the threshold', () => {
     const out = render(
-      model({ fiveHourResetAt: null, weeklyResetAt: null }),
-      config({ theme: 'default', useColors: false, useIcons: false }),
+      model({ fiveHour: 50 }),
+      config({ theme: 'compact', useColors: false, useIcons: false }),
       plainCtx(),
     );
-    expect(out).not.toContain('Resets');
+    expect(out).not.toContain('resets');
+  });
+
+  it('honors a custom countdownAfterPercent', () => {
+    const out = render(
+      model({ fiveHour: 28 }),
+      config({ theme: 'compact', useColors: false, useIcons: false, countdownAfterPercent: 20 }),
+      plainCtx(),
+    );
+    expect(out).toMatch(RESET_INFO);
+  });
+
+  it('respects showCountdown: false', () => {
+    const out = render(
+      model({ fiveHour: 61 }),
+      config({ theme: 'compact', useColors: false, useIcons: false, showCountdown: false }),
+      plainCtx(),
+    );
+    expect(out).not.toContain('resets');
+  });
+
+  it('omits the info when the reset timestamp is unavailable', () => {
+    const out = render(
+      model({ fiveHour: 61, fiveHourResetAt: null }),
+      config({ theme: 'compact', useColors: false, useIcons: false }),
+      plainCtx(),
+    );
+    expect(out).toContain('5h 61%');
+    expect(out).not.toContain('resets');
+  });
+
+  it('renders in minimal, nerd-font, powerline, and plain-text too', () => {
+    for (const theme of ['minimal', 'nerd-font', 'powerline', 'plain-text'] as const) {
+      const out = render(
+        model({ fiveHour: 61 }),
+        config({ theme, useColors: false, useIcons: false }),
+        plainCtx(),
+      );
+      expect(out).toMatch(RESET_INFO);
+    }
   });
 });
 
@@ -300,14 +336,7 @@ describe('render: warnings and fallback', () => {
       effort: null,
       gitDirty: null,
     };
-    const themes: Theme[] = [
-      'default',
-      'compact',
-      'minimal',
-      'powerline',
-      'nerd-font',
-      'plain-text',
-    ];
+    const themes: Theme[] = ['compact', 'minimal', 'powerline', 'nerd-font', 'plain-text'];
     for (const theme of themes) {
       const out = render(empty, config({ theme, useColors: false }), plainCtx());
       // Never blank (a blank line hides the row); always at least the missing marker.

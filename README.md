@@ -14,9 +14,9 @@ A live status line for [Claude Code](https://code.claude.com) that shows your mo
 
 - Model name (bold)
 - Git branch (blue)
-- Context window usage with a color-coded progress bar
-- 5-hour usage window with a reset countdown
-- Weekly (7-day) usage window with a reset countdown
+- Context window usage with color-coded percentages
+- 5-hour usage window — once it passes 50%, the segment also shows **when it resets and how long is left**, e.g. `5h 61% resets 4:32pm (2h 13m left)`
+- Weekly (7-day) usage window
 - Session cost in USD
 - Working directory (optional)
 
@@ -24,10 +24,18 @@ Every value comes from a field Claude Code documents. When a value is not yet av
 
 ## Preview
 
-Compact theme, one line — **the default**:
+Every theme is a single line — the status line row in Claude Code is one row tall, so the tool never wastes vertical space. (The old multi-line `default` dashboard theme was removed in v1.4.0; configs that still name it fall back to `compact`.)
+
+Compact theme — **the default**:
 
 ```text
 Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13% | $0.12
+```
+
+Once the 5-hour window passes 50%, its segment gains the reset time and the time left, so you always know how long you have to manage your work:
+
+```text
+Opus 4 | feature/auth | Ctx 41% | 5h 61% resets 4:32pm (2h 13m left) | Week 13% | $0.12
 ```
 
 On a fresh session, before Claude Code reports your rate limits, the 5-hour, weekly, and cost segments are simply omitted (no `--` placeholder) and appear once the data loads:
@@ -36,23 +44,7 @@ On a fresh session, before Claude Code reports your rate limits, the 5-hour, wee
 Opus 4 | main | Ctx 12%
 ```
 
-`default` theme (multi-line dashboard):
-
-```text
-🤖 Opus 4
-🌿 feature/request-flow
-🧠 Context ⚠
-██████████░░ 82%
-⚡ 5-hour
-███████░░░░░ 61%
-Resets in 2h 13m
-📅 Weekly
-██░░░░░░░░░░ 19%
-Resets in 5d 0h
-💰 $0.12
-```
-
-Minimal theme (single line):
+Minimal theme:
 
 ```text
 Opus 4 │ 5h 24% │ Week 11%
@@ -64,7 +56,7 @@ Plain-text theme (ASCII only, no color, safe for tmux, CI, and logs):
 Opus 4 | feature/auth | Ctx 82% [##########--] | 5h 61% | Week 19% | $0.12
 ```
 
-`powerline` and `nerd-font` themes are also included. Run `flux-code preview` to see all six in your own terminal with color.
+`powerline` and `nerd-font` themes are also included. Run `flux-code preview` to see all five in your own terminal with color.
 
 ## How it reads your usage (and what the API supports)
 
@@ -179,13 +171,13 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
   "showWeekly": true,
   "showCost": true,
   "showCountdown": true,
+  "countdownAfterPercent": 50,
   "showWorkingDirectory": false,
   "hideUnavailable": true,
   "refreshSeconds": 30,
   "progressWidth": 12,
   "useColors": true,
   "useIcons": true,
-  "partialBlocks": false,
   "flashOnCritical": true,
   "separator": " | ",
   "missingText": "--",
@@ -194,41 +186,41 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 }
 ```
 
-| Key                    | Type    | Default        | Meaning                                                                                                                                                                                                                                      |
-| ---------------------- | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `theme`                | string  | `compact`      | One of the six themes below. Canonical selector.                                                                                                                                                                                             |
-| `layout`               | string  | `compact`      | Alias for `default`, `compact`, or `minimal`. Sets `theme` when `theme` is not given.                                                                                                                                                        |
-| `showModel`            | boolean | `true`         | Show the model name.                                                                                                                                                                                                                         |
-| `showBranch`           | boolean | `true`         | Show the git branch. Set `false` to skip the git call entirely.                                                                                                                                                                              |
-| `showContext`          | boolean | `true`         | Show context window usage.                                                                                                                                                                                                                   |
-| `showFiveHour`         | boolean | `true`         | Show the 5-hour window.                                                                                                                                                                                                                      |
-| `showWeekly`           | boolean | `true`         | Show the weekly window.                                                                                                                                                                                                                      |
-| `showCost`             | boolean | `true`         | Show session cost when available.                                                                                                                                                                                                            |
-| `showCountdown`        | boolean | `true`         | Show reset countdowns in the default theme.                                                                                                                                                                                                  |
-| `showWorkingDirectory` | boolean | `false`        | Show the working directory.                                                                                                                                                                                                                  |
-| `showLines`            | boolean | `false`        | Show lines added/removed this session (`+124 −18`), from `cost.total_lines_added/removed`.                                                                                                                                                   |
-| `showSessionTime`      | boolean | `false`        | Show elapsed session time (`⏱ 2h 13m`), from `cost.total_duration_ms`.                                                                                                                                                                       |
-| `showBurnRate`         | boolean | `false`        | Show spend rate in USD per hour (`$0.34/h`), from cost ÷ duration.                                                                                                                                                                           |
-| `showRepo`             | boolean | `false`        | Show the repository as `owner/name` (`workspace.repo`).                                                                                                                                                                                      |
-| `showTokens`           | boolean | `false`        | Show the context token count (`45.2k tok`), from `context_window.current_usage`.                                                                                                                                                             |
-| `showVersion`          | boolean | `false`        | Show the Claude Code version (`v2.1.90`).                                                                                                                                                                                                    |
-| `showOutputStyle`      | boolean | `false`        | Show the active output style (`output_style.name`).                                                                                                                                                                                          |
-| `showEffort`           | boolean | `false`        | Show the thinking-effort level (`effort.level`).                                                                                                                                                                                             |
-| `showGitDirty`         | boolean | `false`        | Show the count of uncommitted git changes (`±3`). Adds a `git status` call, cached per session.                                                                                                                                              |
-| `hideUnavailable`      | boolean | `true`         | Hide the 5-hour and weekly segments until their data loads, instead of showing `--`. On a fresh session `rate_limits` only appears after the first API response; this avoids a "loading" flicker. Set `false` to always show them with `--`. |
-| `notify`               | boolean | `false`        | Fire a desktop notification when 5-hour or weekly usage first crosses a `notifyThresholds` level. See [Usage notifications](#usage-notifications).                                                                                           |
-| `notifyBell`           | boolean | `true`         | Also emit a terminal bell alongside a usage notification.                                                                                                                                                                                    |
-| `notifyThresholds`     | array   | `[90]`         | Percent levels that trigger a notification, e.g. `[80, 95]`. Cleaned to whole numbers in 1–100.                                                                                                                                              |
-| `refreshSeconds`       | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                                                                                                                                                                             |
-| `progressWidth`        | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                                                                                                                                                                           |
-| `useColors`            | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                                                                                                                                                                                |
-| `useIcons`             | boolean | `true`         | Emoji and Nerd Font glyphs.                                                                                                                                                                                                                  |
-| `partialBlocks`        | boolean | `false`        | Use eighth-block glyphs for smoother bars.                                                                                                                                                                                                   |
-| `flashOnCritical`      | boolean | `true`         | Blink the warning icon past the flash threshold.                                                                                                                                                                                             |
-| `separator`            | string  | `" \| "`       | Segment separator for the compact theme.                                                                                                                                                                                                     |
-| `missingText`          | string  | `"--"`         | Text shown when a value is unavailable.                                                                                                                                                                                                      |
-| `colorThresholds`      | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                                                                                                                                                                              |
-| `warnThresholds`       | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                                                                                                                                                                                   |
+| Key                     | Type    | Default        | Meaning                                                                                                                                                                                                                                      |
+| ----------------------- | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`                 | string  | `compact`      | One of the five themes below. Canonical selector.                                                                                                                                                                                            |
+| `layout`                | string  | `compact`      | Alias for `compact` or `minimal`. Sets `theme` when `theme` is not given.                                                                                                                                                                    |
+| `showModel`             | boolean | `true`         | Show the model name.                                                                                                                                                                                                                         |
+| `showBranch`            | boolean | `true`         | Show the git branch. Set `false` to skip the git call entirely.                                                                                                                                                                              |
+| `showContext`           | boolean | `true`         | Show context window usage.                                                                                                                                                                                                                   |
+| `showFiveHour`          | boolean | `true`         | Show the 5-hour window.                                                                                                                                                                                                                      |
+| `showWeekly`            | boolean | `true`         | Show the weekly window.                                                                                                                                                                                                                      |
+| `showCost`              | boolean | `true`         | Show session cost when available.                                                                                                                                                                                                            |
+| `showCountdown`         | boolean | `true`         | Show the 5-hour reset details once usage crosses `countdownAfterPercent`.                                                                                                                                                                    |
+| `countdownAfterPercent` | number  | `50`           | 5-hour usage percentage above which the segment appends `resets 4:32pm (2h 13m left)`. `0` always shows it; `100` never does.                                                                                                                |
+| `showWorkingDirectory`  | boolean | `false`        | Show the working directory.                                                                                                                                                                                                                  |
+| `showLines`             | boolean | `false`        | Show lines added/removed this session (`+124 −18`), from `cost.total_lines_added/removed`.                                                                                                                                                   |
+| `showSessionTime`       | boolean | `false`        | Show elapsed session time (`⏱ 2h 13m`), from `cost.total_duration_ms`.                                                                                                                                                                       |
+| `showBurnRate`          | boolean | `false`        | Show spend rate in USD per hour (`$0.34/h`), from cost ÷ duration.                                                                                                                                                                           |
+| `showRepo`              | boolean | `false`        | Show the repository as `owner/name` (`workspace.repo`).                                                                                                                                                                                      |
+| `showTokens`            | boolean | `false`        | Show the context token count (`45.2k tok`), from `context_window.current_usage`.                                                                                                                                                             |
+| `showVersion`           | boolean | `false`        | Show the Claude Code version (`v2.1.90`).                                                                                                                                                                                                    |
+| `showOutputStyle`       | boolean | `false`        | Show the active output style (`output_style.name`).                                                                                                                                                                                          |
+| `showEffort`            | boolean | `false`        | Show the thinking-effort level (`effort.level`).                                                                                                                                                                                             |
+| `showGitDirty`          | boolean | `false`        | Show the count of uncommitted git changes (`±3`). Adds a `git status` call, cached per session.                                                                                                                                              |
+| `hideUnavailable`       | boolean | `true`         | Hide the 5-hour and weekly segments until their data loads, instead of showing `--`. On a fresh session `rate_limits` only appears after the first API response; this avoids a "loading" flicker. Set `false` to always show them with `--`. |
+| `notify`                | boolean | `false`        | Fire a desktop notification when 5-hour or weekly usage first crosses a `notifyThresholds` level. See [Usage notifications](#usage-notifications).                                                                                           |
+| `notifyBell`            | boolean | `true`         | Also emit a terminal bell alongside a usage notification.                                                                                                                                                                                    |
+| `notifyThresholds`      | array   | `[90]`         | Percent levels that trigger a notification, e.g. `[80, 95]`. Cleaned to whole numbers in 1–100.                                                                                                                                              |
+| `refreshSeconds`        | number  | `30`           | Written to `statusLine.refreshInterval` by `install`. Minimum 1.                                                                                                                                                                             |
+| `progressWidth`         | number  | `12`           | Progress bar width in characters. Clamped to 1-60.                                                                                                                                                                                           |
+| `useColors`             | boolean | `true`         | ANSI colors. Also honors the `NO_COLOR` environment variable.                                                                                                                                                                                |
+| `useIcons`              | boolean | `true`         | Emoji and Nerd Font glyphs.                                                                                                                                                                                                                  |
+| `flashOnCritical`       | boolean | `true`         | Blink the warning icon past the flash threshold.                                                                                                                                                                                             |
+| `separator`             | string  | `" \| "`       | Segment separator for the compact theme.                                                                                                                                                                                                     |
+| `missingText`           | string  | `"--"`         | Text shown when a value is unavailable.                                                                                                                                                                                                      |
+| `colorThresholds`       | object  | `60 / 80 / 90` | Percent boundaries for yellow, orange, and red.                                                                                                                                                                                              |
+| `warnThresholds`        | object  | `80 / 90 / 95` | Percent boundaries for the warn, danger, and flash badges.                                                                                                                                                                                   |
 
 ## Extra segments
 
@@ -276,25 +268,23 @@ Get a desktop notification the moment your 5-hour or weekly usage crosses a thre
 
 Set `theme` (or `layout`) to one of:
 
-| Theme        | Shape                               | Best for                                     |
-| ------------ | ----------------------------------- | -------------------------------------------- |
-| `default`    | Multi-line, emoji, bars, countdowns | A dashboard view at the bottom of the window |
-| `compact`    | One line, pipe-separated            | Keeping everything on one row                |
-| `minimal`    | One line, thin separators           | Only the numbers that matter                 |
-| `powerline`  | One line, colored segments          | Powerline or Nerd Font terminals             |
-| `nerd-font`  | One line, glyph icons               | Nerd Font terminals                          |
-| `plain-text` | ASCII only, no color                | tmux, CI logs, or terminals without ANSI     |
+| Theme        | Shape                      | Best for                                 |
+| ------------ | -------------------------- | ---------------------------------------- |
+| `compact`    | One line, pipe-separated   | Keeping everything on one row            |
+| `minimal`    | One line, thin separators  | Only the numbers that matter             |
+| `powerline`  | One line, colored segments | Powerline or Nerd Font terminals         |
+| `nerd-font`  | One line, glyph icons      | Nerd Font terminals                      |
+| `plain-text` | ASCII only, no color       | tmux, CI logs, or terminals without ANSI |
+
+All themes are single-line. The multi-line `default` dashboard was removed in v1.4.0 — it ate too much vertical space for a status line; a config that still says `"theme": "default"` falls back to `compact`.
 
 ## Progress bars
 
-Bars use Unicode block characters and follow `progressWidth`:
+The `plain-text` theme renders an ASCII context bar whose width follows `progressWidth`:
 
 ```text
-width 10, 60%   ██████░░░░
-width 20, 70%   ██████████████░░░░░░
+width 12, 82%   [##########--]
 ```
-
-Set `partialBlocks: true` for sub-cell resolution with eighth-block glyphs (`▏▎▍▌▋▊▉`), which makes the bar move more smoothly between whole cells.
 
 ## Colors
 
@@ -345,10 +335,10 @@ A quiet single-line setup with only the numbers:
 { "theme": "minimal", "showBranch": false, "showContext": false }
 ```
 
-A wide, high-contrast dashboard:
+Show the 5-hour reset time from the very first percent (or never):
 
 ```json
-{ "theme": "default", "progressWidth": 20, "partialBlocks": true }
+{ "countdownAfterPercent": 0 }
 ```
 
 A monochrome line for a terminal without color:
@@ -369,7 +359,7 @@ Warn earlier (yellow at 50%, red at 80%):
 - **5h and Week never appear.** Rate limits appear only for Claude.ai Pro and Max subscribers, and only after the first API response of the session. API-key sign-ins do not get these fields, so with the default `hideUnavailable: true` the segments stay hidden. Set `hideUnavailable: false` if you would rather see them as `--`.
 - **The branch is missing.** The directory must be a git repository, and `git` must be on PATH. Detached HEAD shows no branch. Set `showBranch: false` to hide the segment.
 - **Countdowns do not tick while idle.** Set `refreshSeconds` (which `install` writes to `refreshInterval`) so the command re-runs on a timer.
-- **Icons look like boxes.** The `nerd-font` and `powerline` themes need a Nerd Font. Switch to `default`, `compact`, or `plain-text` if you do not have one.
+- **Icons look like boxes.** The `nerd-font` and `powerline` themes need a Nerd Font. Switch to `compact` or `plain-text` if you do not have one.
 - **Colors show as raw escape codes.** Your terminal may not support ANSI. Set `useColors: false` or use the `plain-text` theme.
 
 ## FAQ
@@ -408,7 +398,7 @@ The code is TypeScript, ESM, strict mode, with zero runtime dependencies. Module
 | `src/countdown.ts`  | Reset countdown and duration formatting      |
 | `src/icons.ts`      | Emoji, Nerd Font, and Powerline glyph sets   |
 | `src/utils.ts`      | stdin, JSON parsing, and git branch lookup   |
-| `src/renderer.ts`   | Pure rendering for all six themes            |
+| `src/renderer.ts`   | Pure rendering for all five themes           |
 | `src/statusline.ts` | Normalize a payload and render it            |
 | `src/cli.ts`        | `install`, `uninstall`, `preview`, `doctor`  |
 | `src/index.ts`      | Entry point                                  |
