@@ -1,6 +1,6 @@
 {
   "name": "flux-code",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "A beautiful live status line for Claude Code: model, git branch, context window, 5-hour and weekly usage, reset countdowns, and session cost.",
   "keywords": [
     "claude",

@@ -465,8 +465,8 @@ function fiveHourResetInfo(model, config, nowMs) {
   if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
   const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
   if (countdown === "--") return null;
-  if (countdown === "now") return "resets now";
-  return `${countdown} left`;
+  if (countdown === "now") return "(now)";
+  return `(${countdown})`;
 }
 function warnBadge(pct, config, ansi, glyph) {
   if (pct === null || !config.useIcons) return "";

@@ -93,7 +93,7 @@ function extraSegments(model: StatusModel, config: Config, ansi: Ansi): Extra[] 
 
 /**
  * Time left in the 5-hour window, shown once usage crosses
- * `countdownAfterPercent` (default 50%), e.g. "2h 13m left". Returns `null`
+ * `countdownAfterPercent` (default 50%), e.g. "(2h 13m)". Returns `null`
  * below the threshold or when the reset timestamp is unavailable, so the
  * line stays short while there is plenty of headroom.
  */
@@ -102,8 +102,8 @@ function fiveHourResetInfo(model: StatusModel, config: Config, nowMs: number): s
   if (model.fiveHour === null || model.fiveHour <= config.countdownAfterPercent) return null;
   const countdown = formatCountdown(model.fiveHourResetAt, nowMs);
   if (countdown === '--') return null;
-  if (countdown === 'now') return 'resets now';
-  return `${countdown} left`;
+  if (countdown === 'now') return '(now)';
+  return `(${countdown})`;
 }
 
 /** Escalating warning badge: yellow, red, then blinking red past the thresholds. */

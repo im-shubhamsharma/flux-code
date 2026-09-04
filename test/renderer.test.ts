@@ -169,13 +169,13 @@ describe('render: compact', () => {
 });
 
 describe('render: 5-hour reset info', () => {
-  it('appends time left once usage crosses 50%', () => {
+  it('appends the time left in parens once usage crosses 50%', () => {
     const out = render(
       model({ fiveHour: 61 }),
       config({ theme: 'compact', useColors: false, useIcons: false }),
       plainCtx(),
     );
-    expect(out).toBe('Opus 4 | feature/auth | Ctx 41% | 5h 61% 2h 13m left | Week 13% | $0.12');
+    expect(out).toBe('Opus 4 | feature/auth | Ctx 41% | 5h 61% (2h 13m) | Week 13% | $0.12');
   });
 
   it('stays hidden at or below the threshold', () => {
@@ -184,7 +184,7 @@ describe('render: 5-hour reset info', () => {
       config({ theme: 'compact', useColors: false, useIcons: false }),
       plainCtx(),
     );
-    expect(out).not.toContain('left');
+    expect(out).not.toContain('(');
   });
 
   it('honors a custom countdownAfterPercent', () => {
@@ -193,7 +193,7 @@ describe('render: 5-hour reset info', () => {
       config({ theme: 'compact', useColors: false, useIcons: false, countdownAfterPercent: 20 }),
       plainCtx(),
     );
-    expect(out).toContain('2h 13m left');
+    expect(out).toContain('(2h 13m)');
   });
 
   it('respects showCountdown: false', () => {
@@ -202,7 +202,7 @@ describe('render: 5-hour reset info', () => {
       config({ theme: 'compact', useColors: false, useIcons: false, showCountdown: false }),
       plainCtx(),
     );
-    expect(out).not.toContain('left');
+    expect(out).not.toContain('(');
   });
 
   it('omits the info when the reset timestamp is unavailable', () => {
@@ -212,7 +212,7 @@ describe('render: 5-hour reset info', () => {
       plainCtx(),
     );
     expect(out).toContain('5h 61%');
-    expect(out).not.toContain('left');
+    expect(out).not.toContain('(');
   });
 
   it('renders in minimal, nerd-font, powerline, and plain-text too', () => {
@@ -222,7 +222,7 @@ describe('render: 5-hour reset info', () => {
         config({ theme, useColors: false, useIcons: false }),
         plainCtx(),
       );
-      expect(out).toContain('2h 13m left');
+      expect(out).toContain('(2h 13m)');
     }
   });
 });

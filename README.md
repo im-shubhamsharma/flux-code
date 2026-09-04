@@ -15,7 +15,7 @@ A live status line for [Claude Code](https://code.claude.com) that shows your mo
 - Model name (bold)
 - Git branch (blue)
 - Context window usage with color-coded percentages
-- 5-hour usage window — once it passes 50%, the segment also shows **how much time is left**, e.g. `5h 61% 2h 13m left`
+- 5-hour usage window — once it passes 50%, the segment also shows **how much time is left**, e.g. `5h 61% (2h 13m)`
 - Weekly (7-day) usage window
 - Session cost in USD
 - Working directory (optional)
@@ -35,7 +35,7 @@ Opus 4 | feature/auth | Ctx 41% | 5h 28% | Week 13% | $0.12
 Once the 5-hour window passes 50%, its segment gains the time left, so you always know how long you have to manage your work:
 
 ```text
-Opus 4 | feature/auth | Ctx 41% | 5h 61% 2h 13m left | Week 13% | $0.12
+Opus 4 | feature/auth | Ctx 41% | 5h 61% (2h 13m) | Week 13% | $0.12
 ```
 
 On a fresh session, before Claude Code reports your rate limits, the 5-hour, weekly, and cost segments are simply omitted (no `--` placeholder) and appear once the data loads:
@@ -197,7 +197,7 @@ Config lives at `~/.claude/flux-code.json`. Override the path with the `FLUX_COD
 | `showWeekly`            | boolean | `true`         | Show the weekly window.                                                                                                                                                                                                                      |
 | `showCost`              | boolean | `true`         | Show session cost when available.                                                                                                                                                                                                            |
 | `showCountdown`         | boolean | `true`         | Show the 5-hour reset details once usage crosses `countdownAfterPercent`.                                                                                                                                                                    |
-| `countdownAfterPercent` | number  | `50`           | 5-hour usage percentage above which the segment appends the time left, e.g. `2h 13m left`. `0` always shows it; `100` never does.                                                                                                            |
+| `countdownAfterPercent` | number  | `50`           | 5-hour usage percentage above which the segment appends the time left, e.g. `(2h 13m)`. `0` always shows it; `100` never does.                                                                                                               |
 | `showWorkingDirectory`  | boolean | `false`        | Show the working directory.                                                                                                                                                                                                                  |
 | `showLines`             | boolean | `false`        | Show lines added/removed this session (`+124 −18`), from `cost.total_lines_added/removed`.                                                                                                                                                   |
 | `showSessionTime`       | boolean | `false`        | Show elapsed session time (`⏱ 2h 13m`), from `cost.total_duration_ms`.                                                                                                                                                                       |

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-04
+
+### Changed
+
+- **Tightened the 5-hour reset info further**: `5h 61% (2h 13m)` instead of
+  `5h 61% 2h 13m left` — dropping "left" and wrapping the countdown in
+  parentheses reads just as clearly in less width, in every theme.
+
 ## [1.4.1] - 2026-09-04
 
 ### Changed
